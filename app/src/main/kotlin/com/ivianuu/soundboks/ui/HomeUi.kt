@@ -84,7 +84,7 @@ import kotlinx.coroutines.flow.map
             content: @Composable () -> Unit
           ) {
             val backgroundColor = if (selected) MaterialTheme.colors.secondary
-            else LocalContentColor.current.copy(alpha = ContentAlpha.medium)
+            else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
             Surface(
               modifier = Modifier
                 .defaultMinSize(minWidth = 120.dp, minHeight = 56.dp)
