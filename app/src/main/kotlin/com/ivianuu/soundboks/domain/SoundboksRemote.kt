@@ -143,7 +143,7 @@ class SoundboksServer(
     }
   }
 
-  fun close() {
+  suspend fun close() = withContext(context) {
     log { "${device.debugName()} close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
