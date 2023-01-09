@@ -120,6 +120,10 @@ class SoundboksServer(
 
   private val ratelimiter = RateLimiter(1, 100.milliseconds)
 
+  init {
+    log { "${device.debugName()} init" }
+  }
+
   suspend fun send(
     serviceId: UUID,
     characteristicId: UUID,
@@ -140,6 +144,7 @@ class SoundboksServer(
   }
 
   fun close() {
+    log { "${device.debugName()} close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
   }
