@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ContentAlpha
+import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -82,11 +84,11 @@ import kotlinx.coroutines.flow.map
             content: @Composable () -> Unit
           ) {
             val backgroundColor = if (selected) MaterialTheme.colors.secondary
-            else MaterialTheme.colors.primary
+            else LocalContentColor.current.copy(alpha = ContentAlpha.medium)
             Surface(
               modifier = Modifier
                 .defaultMinSize(minWidth = 120.dp, minHeight = 56.dp)
-                .alpha(if (active) 1f else 0.5f),
+                .alpha(if (active) 1f else ContentAlpha.disabled),
               shape = RoundedCornerShape(50),
               color = backgroundColor,
               contentColor = guessingContentColorFor(backgroundColor)

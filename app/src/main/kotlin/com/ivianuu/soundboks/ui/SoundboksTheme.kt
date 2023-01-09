@@ -15,8 +15,8 @@ import com.ivianuu.essentials.ui.material.editEach
 import com.ivianuu.injekt.Provide
 
 object SoundboksTheme {
-  val Primary = Color(0xFF222F3E)
-  val Secondary = Color(0xFFFF9F43)
+  val Primary = Color(0xFFE66767)
+  val Secondary = Color(0xFFFF9F1A)
 }
 
 @Provide fun soundboksTheme(resourceProvider: ResourceProvider) = AppTheme { content ->
