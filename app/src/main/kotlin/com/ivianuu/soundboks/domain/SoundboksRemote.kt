@@ -26,7 +26,6 @@ import com.ivianuu.injekt.coroutines.NamedCoroutineScope
 import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -89,7 +88,11 @@ class SoundboksServer(
   appContext: AppContext,
   bluetoothManager: BluetoothManager
 ) {
-  private val connectionState = MutableStateFlow(false)
+  private val connectionState = MutableSharedFlow<Boolean>(
+    replay = 1,
+    extraBufferCapacity = Int.MAX_VALUE,
+    onBufferOverflow = BufferOverflow.SUSPEND
+  )
   private val serviceChanges = MutableSharedFlow<Unit>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
@@ -109,8 +112,9 @@ class SoundboksServer(
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
           log { "${device.debugName()} connection state changed $newState" }
-          connectionState.value = newState == BluetoothProfile.STATE_CONNECTED
-          if (connectionState.value)
+          val isConnected = newState == BluetoothProfile.STATE_CONNECTED
+          connectionState.tryEmit(isConnected)
+          if (isConnected)
             gatt.discoverServices()
         }
 
