@@ -30,6 +30,7 @@ import com.google.accompanist.flowlayout.FlowRow
 import com.ivianuu.essentials.app.AppForegroundState
 import com.ivianuu.essentials.coroutines.combine
 import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
+import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.resource.Resource
@@ -72,7 +73,6 @@ import kotlinx.coroutines.flow.map
 
 @Provide object HomeKey : RootKey
 
-@OptIn(ExperimentalFoundationApi::class)
 @Provide val homeUi = ModelKeyUi<HomeKey, HomeModel> {
   Scaffold(
     topBar = {
@@ -88,116 +88,123 @@ import kotlinx.coroutines.flow.map
       )
     }
   ) {
-    VerticalList {
-      item {
-        ResourceBox(soundbokses) { value ->
-          FlowRow(
-            modifier = Modifier
-              .padding(8.dp),
-            mainAxisSpacing = 8.dp,
-            crossAxisSpacing = 8.dp
-          ) {
-            @Composable fun Soundboks(
-              selected: Boolean,
-              active: Boolean,
-              onClick: () -> Unit,
-              onLongClick: (() -> Unit)?,
-              content: @Composable () -> Unit
+    ResourceBox(soundbokses) { value ->
+      VerticalList {
+        if (value.isEmpty()) {
+          item {
+            Text("No soundbokses paired")
+          }
+        } else {
+          item {
+            FlowRow(
+              modifier = Modifier
+                .padding(8.dp),
+              mainAxisSpacing = 8.dp,
+              crossAxisSpacing = 8.dp
             ) {
-              val backgroundColor = if (selected) MaterialTheme.colors.secondary
-              else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
-              Surface(
-                modifier = Modifier
-                  .height(32.dp)
-                  .alpha(if (active) 1f else ContentAlpha.disabled),
-                shape = RoundedCornerShape(50),
-                color = backgroundColor,
-                contentColor = guessingContentColorFor(backgroundColor)
+              val allSoundbokses =
+                soundbokses.getOrNull()?.map { it.soundboks.address }?.toSet() ?: emptySet()
+
+              Soundboks(
+                selected = allSoundbokses.all { it in selectedSoundbokses },
+                active = true,
+                onClick = toggleAllSoundboksSelections,
+                onLongClick = null
               ) {
-                Box(
-                  modifier = Modifier
-                    .combinedClickable(
-                      interactionSource = remember { MutableInteractionSource() },
-                      indication = LocalIndication.current,
-                      onClick = onClick,
-                      onLongClick = onLongClick
-                    )
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                  contentAlignment = Alignment.Center
+                Text("ALL")
+              }
+
+              value.forEach { soundboks ->
+                Soundboks(
+                  selected = soundboks.soundboks.address in selectedSoundbokses,
+                  active = soundboks.isConnected,
+                  onClick = { toggleSoundboksSelection(soundboks, false) },
+                  onLongClick = { toggleSoundboksSelection(soundboks, true) }
                 ) {
-                  CompositionLocalProvider(
-                    LocalTextStyle provides MaterialTheme.typography.button,
-                    content = content
-                  )
+                  Text(soundboks.soundboks.name)
                 }
               }
             }
+          }
 
-            val allSoundbokses =
-              soundbokses.getOrNull()?.map { it.soundboks.address }?.toSet() ?: emptySet()
-
-            Soundboks(
-              selected = allSoundbokses.all { it in selectedSoundbokses },
-              active = true,
-              onClick = toggleAllSoundboksSelections,
-              onLongClick = null
-            ) {
-              Text("ALL")
+          if (selectedSoundbokses.isEmpty()) {
+            item {
+              Text("Select a soundboks to edit")
+            }
+          } else {
+            item {
+              SliderListItem(
+                value = config.volume,
+                onValueChange = updateVolume,
+                stepPolicy = incrementingStepPolicy(0.05f),
+                title = { Text("Volume") },
+                valueText = { ScaledPercentageUnitText(it) }
+              )
             }
 
-            value.forEach { soundboks ->
-              Soundboks(
-                selected = soundboks.soundboks.address in selectedSoundbokses,
-                active = soundboks.isConnected,
-                onClick = { toggleSoundboksSelection(soundboks, false) },
-                onLongClick = { toggleSoundboksSelection(soundboks, true) }
-              ) {
-                Text(soundboks.soundboks.name)
-              }
+            item {
+              ListItem(
+                modifier = Modifier.clickable(onClick = updateSoundProfile),
+                title = { Text("Sound profile") },
+                subtitle = { Text(config.soundProfile.name) }
+              )
+            }
+
+            item {
+              ListItem(
+                modifier = Modifier.clickable(onClick = updateChannel),
+                title = { Text("Channel") },
+                subtitle = { Text(config.channel.name) }
+              )
+            }
+
+            item {
+              ListItem(
+                modifier = Modifier.clickable(onClick = updateTeamUpMode),
+                title = { Text("Team up") },
+                subtitle = { Text(config.teamUpMode.name) }
+              )
             }
           }
         }
       }
+    }
+  }
+}
 
-      if (selectedSoundbokses.isEmpty()) {
-        item {
-          Text("Select a soundboks to edit")
-        }
-      } else {
-        item {
-          SliderListItem(
-            value = config.volume,
-            onValueChange = updateVolume,
-            stepPolicy = incrementingStepPolicy(0.05f),
-            title = { Text("Volume") },
-            valueText = { ScaledPercentageUnitText(it) }
-          )
-        }
-
-        item {
-          ListItem(
-            modifier = Modifier.clickable(onClick = updateSoundProfile),
-            title = { Text("Sound profile") },
-            subtitle = { Text(config.soundProfile.name) }
-          )
-        }
-
-        item {
-          ListItem(
-            modifier = Modifier.clickable(onClick = updateChannel),
-            title = { Text("Channel") },
-            subtitle = { Text(config.channel.name) }
-          )
-        }
-
-        item {
-          ListItem(
-            modifier = Modifier.clickable(onClick = updateTeamUpMode),
-            title = { Text("Team up") },
-            subtitle = { Text(config.teamUpMode.name) }
-          )
-        }
-      }
+@OptIn(ExperimentalFoundationApi::class)
+@Composable private fun Soundboks(
+  selected: Boolean,
+  active: Boolean,
+  onClick: () -> Unit,
+  onLongClick: (() -> Unit)?,
+  content: @Composable () -> Unit
+) {
+  val backgroundColor = if (selected) MaterialTheme.colors.secondary
+  else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
+  Surface(
+    modifier = Modifier
+      .height(32.dp)
+      .alpha(if (active) 1f else ContentAlpha.disabled),
+    shape = RoundedCornerShape(50),
+    color = backgroundColor,
+    contentColor = guessingContentColorFor(backgroundColor)
+  ) {
+    Box(
+      modifier = Modifier
+        .combinedClickable(
+          interactionSource = remember { MutableInteractionSource() },
+          indication = LocalIndication.current,
+          onClick = onClick,
+          onLongClick = onLongClick
+        )
+        .padding(horizontal = 8.dp, vertical = 8.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      CompositionLocalProvider(
+        LocalTextStyle provides MaterialTheme.typography.button,
+        content = content
+      )
     }
   }
 }
@@ -314,7 +321,7 @@ data class HomeModel(
       )?.let { updateConfig { copy(teamUpMode = it) } }
     },
     powerOff = action {
-      prefs.selectedSoundbokses.forEach { usecases.powerOff(it) }
+      prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) }
     }
   )
 }
