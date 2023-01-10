@@ -77,6 +77,7 @@ import java.util.*
         {
           it.serviceChanges.first()
           it.connectionState.first { !it }
+          log { "${it.device.debugName()} cancel with soundboks" }
         }
       ) as? R
     }

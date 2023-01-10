@@ -2,6 +2,7 @@ package com.ivianuu.soundboks.domain
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import com.ivianuu.essentials.AppScope
@@ -57,23 +58,25 @@ import kotlinx.coroutines.sync.withLock
     }
     .shareIn(scope, SharingStarted.WhileSubscribed(5000), 1)
 
+  private val foundSoundbokses = mutableSetOf<Soundboks>()
+  private val soundboksLock = Mutex()
+
   @SuppressLint("MissingPermission")
   private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow {
-    val lock = Mutex()
-
     val soundbokses = mutableListOf<Soundboks>()
     trySend(emptyList())
 
     fun handleSoundboks(soundboks: Soundboks) {
       launch {
-        lock.withLock {
+        soundboksLock.withLock {
+          foundSoundbokses += soundboks
           if (soundbokses.any { it.address == soundboks.address })
             return@launch
         }
 
         remote.withSoundboks<Unit>(soundboks.address) {
           log { "${soundboks.debugName()} add soundboks" }
-          lock.withLock {
+          soundboksLock.withLock {
             soundbokses += soundboks
             trySend(soundbokses.toList())
           }
@@ -81,7 +84,7 @@ import kotlinx.coroutines.sync.withLock
           onCancel {
             if (coroutineContext.isActive) {
               log { "${soundboks.debugName()} remove soundboks" }
-              lock.withLock {
+              soundboksLock.withLock {
                 soundbokses.removeAll { it.address == soundboks.address }
                 trySend(soundbokses.toList())
               }
@@ -91,10 +94,16 @@ import kotlinx.coroutines.sync.withLock
       }
     }
 
+    bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
+      .filter { it.isSoundboks() }
+      .forEach { handleSoundboks(it.toSoundboks()) }
+
+    foundSoundbokses.forEach { handleSoundboks(it) }
+
     val callback = object : ScanCallback() {
       override fun onScanResult(callbackType: Int, result: ScanResult) {
         super.onScanResult(callbackType, result)
-        if (result.device.name?.startsWith("#") == true)
+        if (result.device.isSoundboks())
           handleSoundboks(result.device.toSoundboks())
       }
     }
