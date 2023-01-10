@@ -10,10 +10,12 @@ import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.catch
+import com.ivianuu.essentials.coroutines.RateLimiter
 import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.time.seconds
 import com.ivianuu.essentials.util.BroadcastsFactory
 import com.ivianuu.injekt.Provide
@@ -30,6 +32,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.*
 
@@ -43,7 +47,7 @@ import java.util.*
 ) {
   private val servers = RefCountedResource<String, SoundboksServer>(
     scope = scope,
-    timeout = 10.seconds,
+    timeout = 5.seconds,
     create = { SoundboksServer(it, context, logger, appContext, bluetoothManager) },
     release = { _, server -> server.close() }
   )
@@ -76,9 +80,11 @@ import java.util.*
   )
 }
 
+private val sendLimiter = RateLimiter(1, 100.milliseconds)
+
 @SuppressLint("MissingPermission")
 class SoundboksServer(
-  private val address: String,
+  address: String,
   private val context: IOContext,
   @Provide private val logger: Logger,
   appContext: AppContext,
@@ -92,6 +98,8 @@ class SoundboksServer(
   )
 
   val device = bluetoothManager.adapter.getRemoteDevice(address)
+
+  private val sendLock = Mutex()
 
   private val gatt = bluetoothManager.adapter
     .getRemoteDevice(address)
@@ -126,7 +134,6 @@ class SoundboksServer(
     message: ByteArray
   ) = withContext(context) {
     serviceChanges.first()
-    log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
     val service =
       gatt.getService(serviceId) ?: error(
         "${device.debugName()} service not found $serviceId $characteristicId ${
@@ -137,10 +144,13 @@ class SoundboksServer(
       )
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
-    if (!message.contentEquals(characteristic.value)) {
-      characteristic.value = message
-      gatt.writeCharacteristic(characteristic)
-      log { "done" }
+    sendLock.withLock {
+      if (!message.contentEquals(characteristic.value)) {
+        log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+        characteristic.value = message
+        sendLimiter.acquire()
+        gatt.writeCharacteristic(characteristic)
+      }
     }
   }
 

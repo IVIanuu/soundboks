@@ -10,15 +10,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.LocalContentColor
+import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,7 +97,7 @@ import kotlinx.coroutines.flow.map
             mainAxisSpacing = 8.dp,
             crossAxisSpacing = 8.dp
           ) {
-            @Composable fun Chip(
+            @Composable fun Soundboks(
               selected: Boolean,
               active: Boolean,
               onClick: () -> Unit,
@@ -106,7 +108,7 @@ import kotlinx.coroutines.flow.map
               else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
               Surface(
                 modifier = Modifier
-                  .defaultMinSize(minWidth = 120.dp, minHeight = 56.dp)
+                  .height(32.dp)
                   .alpha(if (active) 1f else ContentAlpha.disabled),
                 shape = RoundedCornerShape(50),
                 color = backgroundColor,
@@ -119,10 +121,14 @@ import kotlinx.coroutines.flow.map
                       indication = LocalIndication.current,
                       onClick = onClick,
                       onLongClick = onLongClick
-                    ),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                   contentAlignment = Alignment.Center
                 ) {
-                  content()
+                  CompositionLocalProvider(
+                    LocalTextStyle provides MaterialTheme.typography.button,
+                    content = content
+                  )
                 }
               }
             }
@@ -130,7 +136,7 @@ import kotlinx.coroutines.flow.map
             val allSoundbokses =
               soundbokses.getOrNull()?.map { it.soundboks.address }?.toSet() ?: emptySet()
 
-            Chip(
+            Soundboks(
               selected = allSoundbokses.all { it in selectedSoundbokses },
               active = true,
               onClick = toggleAllSoundboksSelections,
@@ -140,7 +146,7 @@ import kotlinx.coroutines.flow.map
             }
 
             value.forEach { soundboks ->
-              Chip(
+              Soundboks(
                 selected = soundboks.soundboks.address in selectedSoundbokses,
                 active = soundboks.isConnected,
                 onClick = { toggleSoundboksSelection(soundboks, false) },

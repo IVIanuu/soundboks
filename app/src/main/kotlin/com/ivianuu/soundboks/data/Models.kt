@@ -48,8 +48,6 @@ fun List<SoundboksConfig>.merge(): SoundboksConfig = when {
   )
 }
 
-data class SoundboksState(val isConnected: Boolean = false)
-
 enum class SoundChannel(val bytes: ByteArray) {
   LEFT(byteArrayOf(1)), MONO(byteArrayOf(0)), RIGHT(byteArrayOf(2))
 }
