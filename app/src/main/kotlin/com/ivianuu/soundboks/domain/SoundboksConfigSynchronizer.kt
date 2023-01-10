@@ -13,7 +13,8 @@ import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
 import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import java.util.*
 
 @Provide fun soundboksConfigSynchronizer(
@@ -24,11 +25,15 @@ import java.util.*
 ) = ScopeWorker<AppForegroundScope> {
   repository.soundbokses.collectLatest { soundbokses ->
     soundbokses.parForEach { soundboks ->
-      pref.data
-        .mapLatest { it.configs[soundboks.address] ?: SoundboksConfig() }
-        .collectLatest { config ->
-          remote.withSoundboks(soundboks.address) { applyConfig(config) }
-        }
+      remote.isConnected(soundboks.address).collectLatest { isConnected ->
+        if (isConnected)
+          pref.data
+            .map { it.configs[soundboks.address] ?: SoundboksConfig() }
+            .distinctUntilChanged()
+            .collectLatest { config ->
+              remote.withSoundboks(soundboks.address) { applyConfig(config) }
+            }
+      }
     }
   }
 }
