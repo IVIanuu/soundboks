@@ -123,8 +123,8 @@ class SoundboksServer(
       object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
-          log { "${device.debugName()} connection state changed $newState" }
           val isConnected = newState == BluetoothProfile.STATE_CONNECTED
+          log { "${device.debugName()} connection state changed $newState" }
           connectionState.tryEmit(isConnected)
           if (isConnected)
             gatt.discoverServices()

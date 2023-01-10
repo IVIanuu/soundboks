@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -54,7 +55,7 @@ import kotlinx.coroutines.sync.withLock
           .sortedBy { it.name }
       }
     }
-    .shareIn(scope, SharingStarted.WhileSubscribed(), 1)
+    .shareIn(scope, SharingStarted.WhileSubscribed(5000), 1)
 
   @SuppressLint("MissingPermission")
   private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow {
@@ -78,10 +79,12 @@ import kotlinx.coroutines.sync.withLock
           }
 
           onCancel {
-            log { "${soundboks.debugName()} remove soundboks" }
-            lock.withLock {
-              soundbokses.removeAll { it.address == soundboks.address }
-              trySend(soundbokses.toList())
+            if (coroutineContext.isActive) {
+              log { "${soundboks.debugName()} remove soundboks" }
+              lock.withLock {
+                soundbokses.removeAll { it.address == soundboks.address }
+                trySend(soundbokses.toList())
+              }
             }
           }
         }
