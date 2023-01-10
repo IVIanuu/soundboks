@@ -10,12 +10,10 @@ import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.catch
-import com.ivianuu.essentials.coroutines.RateLimiter
 import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
-import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.time.seconds
 import com.ivianuu.essentials.util.BroadcastsFactory
 import com.ivianuu.injekt.Provide
@@ -118,8 +116,6 @@ class SoundboksServer(
       BluetoothDevice.TRANSPORT_LE
     )
 
-  private val ratelimiter = RateLimiter(1, 100.milliseconds)
-
   init {
     log { "${device.debugName()} init" }
   }
@@ -130,7 +126,6 @@ class SoundboksServer(
     message: ByteArray
   ) = withContext(context) {
     serviceChanges.first()
-    ratelimiter.acquire()
     log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
     val service =
       gatt.getService(serviceId) ?: error(
