@@ -25,15 +25,12 @@ import java.util.*
 ) = ScopeWorker<AppForegroundScope> {
   repository.soundbokses.collectLatest { soundbokses ->
     soundbokses.parForEach { soundboks ->
-      remote.isConnected(soundboks.address).collectLatest { isConnected ->
-        if (isConnected)
-          pref.data
-            .map { it.configs[soundboks.address] ?: SoundboksConfig() }
-            .distinctUntilChanged()
-            .collectLatest { config ->
-              remote.withSoundboks(soundboks.address) { applyConfig(config) }
-            }
-      }
+      pref.data
+        .map { it.configs[soundboks.address] ?: SoundboksConfig() }
+        .distinctUntilChanged()
+        .collectLatest { config ->
+          remote.withSoundboks(soundboks.address) { applyConfig(config) }
+        }
     }
   }
 }

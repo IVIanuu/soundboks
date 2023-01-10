@@ -68,8 +68,7 @@ import java.util.*
     address: String,
     block: suspend SoundboksServer.() -> R
   ): R? = withContext(context) {
-    if (!address.isConnected()) null
-    else servers.withResource(address, block)
+    servers.withResource(address, block)
   }
 
   fun bondedDeviceChanges() = broadcastsFactory(
