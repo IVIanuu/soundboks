@@ -133,9 +133,15 @@ class SoundboksServer(
     ratelimiter.acquire()
     log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
     val service =
-      gatt.getService(serviceId) ?: error("Service not found $serviceId $characteristicId")
+      gatt.getService(serviceId) ?: error(
+        "${device.debugName()} service not found $serviceId $characteristicId ${
+          gatt.services.map {
+            it.uuid
+          }
+        }"
+      )
     val characteristic = service.getCharacteristic(characteristicId)
-      ?: error("Characteristic not found $serviceId $characteristicId")
+      ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     if (!message.contentEquals(characteristic.value)) {
       characteristic.value = message
       gatt.writeCharacteristic(characteristic)

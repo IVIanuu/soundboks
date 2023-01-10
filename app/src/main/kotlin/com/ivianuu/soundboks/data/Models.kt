@@ -6,10 +6,8 @@ package com.ivianuu.soundboks.data
 
 import android.bluetooth.BluetoothDevice
 import com.ivianuu.essentials.android.prefs.DataStoreModule
-import com.ivianuu.essentials.lerp
 import com.ivianuu.injekt.Provide
 import kotlinx.serialization.Serializable
-import java.util.*
 
 data class Soundboks(val address: String, val name: String)
 
@@ -52,23 +50,13 @@ fun List<SoundboksConfig>.merge(): SoundboksConfig = when {
 
 data class SoundboksState(val isConnected: Boolean = false)
 
-val SOUNDBOKS_CHANNEL_ID = UUID.fromString("7d0d651e-62ae-4ef2-a727-0e8f3e9b4dfb")
-
-val SOUNDBOKS_CHANNEL_SERVICE_ID = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79")
-
 enum class SoundChannel(val bytes: ByteArray) {
   LEFT(byteArrayOf(1)), MONO(byteArrayOf(0)), RIGHT(byteArrayOf(2))
 }
 
-val SOUNDBOKS_SOUND_PROFILE_SERVICE_ID = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79")
-val SOUNDBOKS_SOUND_PROFILE_ID = UUID.fromString("57a394fb-6d89-4105-8f07-bf730338a9b2")
-
 enum class SoundProfile(val bytes: ByteArray) {
   BASS(byteArrayOf(1)), POWER(byteArrayOf(0)), INDOOR(byteArrayOf(2))
 }
-
-val SOUNDBOKS_TEAM_UP_MODE_SERVICE_ID = UUID.fromString("46c69d1b-7194-46f0-837c-ab7a6b94566f")
-val SOUNDBOKS_TEAM_UP_MODE_ID = UUID.fromString("37bffa18-7f5a-4c8d-8a2d-362866cedfad")
 
 enum class TeamUpMode(val bytes: ByteArray) {
   SOLO(byteArrayOf(115, 111, 108, 111)),
@@ -76,11 +64,3 @@ enum class TeamUpMode(val bytes: ByteArray) {
   JOIN(byteArrayOf(106, 111, 105, 110))
 }
 
-val SOUNDBOKS_VOLUME_SERVICE_ID = UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390")
-val SOUNDBOKS_VOLUME_ID = UUID.fromString("7649b19f-c605-46e2-98f8-6c1808e0cfb4")
-
-fun soundboksVolumeBytes(volume: Float) = byteArrayOf(
-  lerp(0, 255, volume)
-    .let { if (it > 127) it - 256 else it }
-    .toByte()
-)
