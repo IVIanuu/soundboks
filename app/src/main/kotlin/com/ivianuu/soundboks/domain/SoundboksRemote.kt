@@ -12,6 +12,7 @@ import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.catch
 import com.ivianuu.essentials.coroutines.RateLimiter
 import com.ivianuu.essentials.coroutines.RefCountedResource
+import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
@@ -67,7 +68,18 @@ import java.util.*
     address: String,
     block: suspend SoundboksServer.() -> R
   ): R? = withContext(context) {
-    servers.withResource(address, block)
+    servers.withResource(address) {
+      race(
+        {
+          it.serviceChanges.first()
+          block(it)
+        },
+        {
+          it.serviceChanges.first()
+          it.connectionState.first { !it }
+        }
+      ) as? R
+    }
   }
 
   fun bondedDeviceChanges() = broadcastsFactory(
@@ -88,12 +100,12 @@ class SoundboksServer(
   appContext: AppContext,
   bluetoothManager: BluetoothManager
 ) {
-  private val connectionState = MutableSharedFlow<Boolean>(
+  val connectionState = MutableSharedFlow<Boolean>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
     onBufferOverflow = BufferOverflow.SUSPEND
   )
-  private val serviceChanges = MutableSharedFlow<Unit>(
+  val serviceChanges = MutableSharedFlow<Unit>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
     onBufferOverflow = BufferOverflow.SUSPEND
@@ -136,7 +148,6 @@ class SoundboksServer(
     characteristicId: UUID,
     message: ByteArray
   ) = withContext(context) {
-    serviceChanges.first()
     val service = gatt.getService(serviceId) ?: error(
       "${device.debugName()} service not found $serviceId $characteristicId ${
         gatt.services.map {

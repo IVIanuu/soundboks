@@ -14,17 +14,23 @@ import com.ivianuu.injekt.common.typeKeyOf
 
 @Provide class SoundboksBluetoothConnectPermission : RuntimePermission(
   permissionName = Manifest.permission.BLUETOOTH_CONNECT,
-  title = "Bluetooth"
+  title = "Bluetooth connect"
 )
 
-@Provide class SoundboksLocationConnectPermission : RuntimePermission(
+@Provide class SoundboksBluetoothScanPermission : RuntimePermission(
+  permissionName = Manifest.permission.BLUETOOTH_SCAN,
+  title = "Bluetooth scan"
+)
+
+@Provide class SoundboksLocationPermission : RuntimePermission(
   permissionName = Manifest.permission.ACCESS_FINE_LOCATION,
   title = "Location"
 )
 
 val soundboksPermissionKeys = listOf(
   typeKeyOf<SoundboksBluetoothConnectPermission>(),
-  typeKeyOf<SoundboksLocationConnectPermission>()
+  typeKeyOf<SoundboksBluetoothScanPermission>(),
+  typeKeyOf<SoundboksLocationPermission>()
 )
 
 // always request permissions when launching the ui

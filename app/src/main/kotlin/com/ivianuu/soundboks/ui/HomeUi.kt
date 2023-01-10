@@ -24,11 +24,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
 import com.ivianuu.essentials.app.AppForegroundState
-import com.ivianuu.essentials.coroutines.combine
 import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
 import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
@@ -68,8 +66,6 @@ import com.ivianuu.soundboks.domain.SoundboksRepository
 import com.ivianuu.soundboks.domain.SoundboksUsecases
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 
 @Provide object HomeKey : RootKey
 
@@ -92,7 +88,7 @@ import kotlinx.coroutines.flow.map
       VerticalList {
         if (value.isEmpty()) {
           item {
-            Text("No soundbokses paired")
+            Text("No soundbokses found")
           }
         } else {
           item {
@@ -103,11 +99,10 @@ import kotlinx.coroutines.flow.map
               crossAxisSpacing = 8.dp
             ) {
               val allSoundbokses =
-                soundbokses.getOrNull()?.map { it.soundboks.address }?.toSet() ?: emptySet()
+                soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
 
               Soundboks(
                 selected = allSoundbokses.all { it in selectedSoundbokses },
-                active = true,
                 onClick = toggleAllSoundboksSelections,
                 onLongClick = null
               ) {
@@ -116,12 +111,11 @@ import kotlinx.coroutines.flow.map
 
               value.forEach { soundboks ->
                 Soundboks(
-                  selected = soundboks.soundboks.address in selectedSoundbokses,
-                  active = soundboks.isConnected,
+                  selected = soundboks.address in selectedSoundbokses,
                   onClick = { toggleSoundboksSelection(soundboks, false) },
                   onLongClick = { toggleSoundboksSelection(soundboks, true) }
                 ) {
-                  Text(soundboks.soundboks.name)
+                  Text(soundboks.name)
                 }
               }
             }
@@ -175,7 +169,6 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalFoundationApi::class)
 @Composable private fun Soundboks(
   selected: Boolean,
-  active: Boolean,
   onClick: () -> Unit,
   onLongClick: (() -> Unit)?,
   content: @Composable () -> Unit
@@ -184,8 +177,7 @@ import kotlinx.coroutines.flow.map
   else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
   Surface(
     modifier = Modifier
-      .height(32.dp)
-      .alpha(if (active) 1f else ContentAlpha.disabled),
+      .height(32.dp),
     shape = RoundedCornerShape(50),
     color = backgroundColor,
     contentColor = guessingContentColorFor(backgroundColor)
@@ -209,12 +201,10 @@ import kotlinx.coroutines.flow.map
   }
 }
 
-data class UiSoundboks(val soundboks: Soundboks, val isConnected: Boolean)
-
 data class HomeModel(
-  val soundbokses: Resource<List<UiSoundboks>>,
+  val soundbokses: Resource<List<Soundboks>>,
   val selectedSoundbokses: Set<String>,
-  val toggleSoundboksSelection: (UiSoundboks, Boolean) -> Unit,
+  val toggleSoundboksSelection: (Soundboks, Boolean) -> Unit,
   val toggleAllSoundboksSelections: () -> Unit,
   val config: SoundboksConfig,
   val updateSoundProfile: () -> Unit,
@@ -239,17 +229,6 @@ data class HomeModel(
     .flatMapLatest {
       if (it == AppForegroundState.FOREGROUND) repository.soundbokses
       else infiniteEmptyFlow()
-    }
-    .flatMapLatest { soundbokses ->
-      if (soundbokses.isEmpty()) flowOf(emptyList())
-      else combine(
-        soundbokses
-          .sortedBy { it.name }
-          .map { soundboks ->
-            remote.isConnected(soundboks.address)
-              .map { UiSoundboks(soundboks, it) }
-          }
-      )
     }
     .bindResource()
 
@@ -276,10 +255,10 @@ data class HomeModel(
     toggleSoundboksSelection = action { soundboks, longClick ->
       pref.updateData {
         copy(
-          selectedSoundbokses = if (!longClick) setOf(soundboks.soundboks.address)
+          selectedSoundbokses = if (!longClick) setOf(soundboks.address)
           else selectedSoundbokses.toMutableSet().apply {
-            if (soundboks.soundboks.address in this) remove(soundboks.soundboks.address)
-            else add(soundboks.soundboks.address)
+            if (soundboks.address in this) remove(soundboks.address)
+            else add(soundboks.address)
           }
         )
       }
@@ -287,7 +266,7 @@ data class HomeModel(
     toggleAllSoundboksSelections = action {
       pref.updateData {
         val allSoundbokses =
-          soundbokses.getOrNull()?.map { it.soundboks.address }?.toSet() ?: emptySet()
+          soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
         copy(
           selectedSoundbokses = if (allSoundbokses.all { it in selectedSoundbokses }) emptySet()
           else allSoundbokses
