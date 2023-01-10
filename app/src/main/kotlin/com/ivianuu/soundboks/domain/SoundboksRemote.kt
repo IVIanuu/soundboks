@@ -90,8 +90,6 @@ import java.util.*
   )
 }
 
-private val sendLimiter = RateLimiter(1, 100.milliseconds)
-
 @SuppressLint("MissingPermission")
 class SoundboksServer(
   address: String,
@@ -114,6 +112,7 @@ class SoundboksServer(
   val device = bluetoothManager.adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
+  private val sendLimiter = RateLimiter(1, 250.milliseconds)
 
   private val gatt = bluetoothManager.adapter
     .getRemoteDevice(address)
