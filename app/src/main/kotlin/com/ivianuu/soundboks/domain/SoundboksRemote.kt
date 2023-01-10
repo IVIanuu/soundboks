@@ -134,14 +134,13 @@ class SoundboksServer(
     message: ByteArray
   ) = withContext(context) {
     serviceChanges.first()
-    val service =
-      gatt.getService(serviceId) ?: error(
-        "${device.debugName()} service not found $serviceId $characteristicId ${
-          gatt.services.map {
-            it.uuid
-          }
-        }"
-      )
+    val service = gatt.getService(serviceId) ?: error(
+      "${device.debugName()} service not found $serviceId $characteristicId ${
+        gatt.services.map {
+          it.uuid
+        }
+      }"
+    )
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     sendLock.withLock {
