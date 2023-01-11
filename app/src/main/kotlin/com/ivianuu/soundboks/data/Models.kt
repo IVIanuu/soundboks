@@ -61,4 +61,3 @@ enum class TeamUpMode(val bytes: ByteArray) {
   HOST(byteArrayOf(104, 111, 115, 116)),
   JOIN(byteArrayOf(106, 111, 105, 110))
 }
-

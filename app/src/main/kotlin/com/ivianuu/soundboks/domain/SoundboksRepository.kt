@@ -20,6 +20,7 @@ import com.ivianuu.soundboks.data.Soundboks
 import com.ivianuu.soundboks.data.debugName
 import com.ivianuu.soundboks.data.isSoundboks
 import com.ivianuu.soundboks.data.toSoundboks
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,13 +37,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+context(Logger, NamedCoroutineScope<AppScope>, SoundboksRemote)
 @Provide @Scoped<AppScope> class SoundboksRepository(
   private val bluetoothManager: @SystemService BluetoothManager,
   private val context: IOContext,
-  private val logger: Logger,
-  permissionStateFactory: PermissionStateFactory,
-  private val remote: SoundboksRemote,
-  scope: NamedCoroutineScope<AppScope>
+  permissionStateFactory: PermissionStateFactory
 ) {
   val soundbokses: Flow<List<Soundboks>> = permissionStateFactory(soundboksPermissionKeys)
     .flatMapLatest {
@@ -56,7 +55,7 @@ import kotlinx.coroutines.sync.withLock
           .sortedBy { it.name }
       }
     }
-    .shareIn(scope, SharingStarted.WhileSubscribed(5000), 1)
+    .shareIn(this@NamedCoroutineScope, SharingStarted.WhileSubscribed(2000), 1)
 
   private val foundSoundbokses = mutableSetOf<Soundboks>()
   private val soundboksLock = Mutex()
@@ -74,22 +73,27 @@ import kotlinx.coroutines.sync.withLock
             return@launch
         }
 
-        remote.withSoundboks<Unit>(soundboks.address) {
-          log { "${soundboks.debugName()} add soundboks" }
-          soundboksLock.withLock {
-            soundbokses += soundboks
-            trySend(soundbokses.toList())
-          }
-
-          onCancel {
-            if (coroutineContext.isActive) {
-              log { "${soundboks.debugName()} remove soundboks" }
+        withSoundboks<Unit>(soundboks.address) {
+          onCancel(
+            block = {
+              log { "${soundboks.debugName()} add soundboks" }
               soundboksLock.withLock {
-                soundbokses.removeAll { it.address == soundboks.address }
+                soundbokses += soundboks
                 trySend(soundbokses.toList())
               }
+
+              awaitCancellation()
+            },
+            onCancel = {
+              if (coroutineContext.isActive) {
+                log { "${soundboks.debugName()} remove soundboks" }
+                soundboksLock.withLock {
+                  soundbokses.removeAll { it.address == soundboks.address }
+                  trySend(soundbokses.toList())
+                }
+              }
             }
-          }
+          )
         }
       }
     }
@@ -117,7 +121,7 @@ import kotlinx.coroutines.sync.withLock
   }
 
   @SuppressLint("MissingPermission")
-  private fun bondedSoundbokses() = remote.bondedDeviceChanges()
+  private fun bondedSoundbokses(): Flow<List<Soundboks>> = bondedDeviceChanges()
     .onStart<Any> { emit(Unit) }
     .map {
       bluetoothManager.adapter?.bondedDevices
@@ -130,7 +134,7 @@ import kotlinx.coroutines.sync.withLock
       else combine(
         soundbokses
           .map { soundboks ->
-            remote.isConnected(soundboks.address)
+            isConnected(soundboks.address)
               .map { soundboks to it }
           }
       )

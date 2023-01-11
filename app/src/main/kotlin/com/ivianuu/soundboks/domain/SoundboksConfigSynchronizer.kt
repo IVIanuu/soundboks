@@ -17,15 +17,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.util.*
 
-@Provide fun soundboksConfigSynchronizer(
-  logger: Logger,
-  pref: DataStore<SoundboksPrefs>,
-  remote: SoundboksRemote,
-  repository: SoundboksRepository
+context(Logger, SoundboksRemote, SoundboksRepository) @Provide fun soundboksConfigApplier(
+  pref: DataStore<SoundboksPrefs>
 ) = ScopeWorker<AppForegroundScope> {
-  repository.soundbokses.collectLatest { soundbokses ->
+  soundbokses.collectLatest { soundbokses ->
     soundbokses.parForEach { soundboks ->
-      remote.withSoundboks(soundboks.address) {
+      withSoundboks(soundboks.address) {
         pref.data
           .map { it.configs[soundboks.address] ?: SoundboksConfig() }
           .distinctUntilChanged()
@@ -37,10 +34,7 @@ import java.util.*
   }
 }
 
-private suspend fun SoundboksServer.applyConfig(
-  config: SoundboksConfig,
-  @Inject logger: Logger
-) {
+context(Logger) private suspend fun SoundboksServer.applyConfig(config: SoundboksConfig) {
   log { "${device.debugName()} -> apply config $config" }
 
   send(

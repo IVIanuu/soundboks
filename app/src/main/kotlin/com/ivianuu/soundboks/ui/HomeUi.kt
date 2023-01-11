@@ -30,7 +30,6 @@ import com.ivianuu.essentials.app.AppForegroundState
 import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
 import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
-import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.state.action
@@ -38,6 +37,7 @@ import com.ivianuu.essentials.state.bind
 import com.ivianuu.essentials.state.bindResource
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.ListKey
+import com.ivianuu.essentials.ui.layout.center
 import com.ivianuu.essentials.ui.material.ListItem
 import com.ivianuu.essentials.ui.material.Scaffold
 import com.ivianuu.essentials.ui.material.TopAppBar
@@ -48,8 +48,8 @@ import com.ivianuu.essentials.ui.navigation.ModelKeyUi
 import com.ivianuu.essentials.ui.navigation.Navigator
 import com.ivianuu.essentials.ui.navigation.RootKey
 import com.ivianuu.essentials.ui.navigation.push
-import com.ivianuu.essentials.ui.popup.PopupMenu
 import com.ivianuu.essentials.ui.popup.PopupMenuButton
+import com.ivianuu.essentials.ui.popup.PopupMenuItem
 import com.ivianuu.essentials.ui.prefs.ScaledPercentageUnitText
 import com.ivianuu.essentials.ui.prefs.SliderListItem
 import com.ivianuu.essentials.ui.resource.ResourceBox
@@ -61,7 +61,6 @@ import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
 import com.ivianuu.soundboks.data.TeamUpMode
 import com.ivianuu.soundboks.data.merge
-import com.ivianuu.soundboks.domain.SoundboksRemote
 import com.ivianuu.soundboks.domain.SoundboksRepository
 import com.ivianuu.soundboks.domain.SoundboksUsecases
 import kotlinx.coroutines.flow.Flow
@@ -75,11 +74,9 @@ import kotlinx.coroutines.flow.flatMapLatest
       TopAppBar(
         title = { Text("Soundboks") },
         actions = {
-          PopupMenuButton(
-            items = listOf(
-              PopupMenu.Item(onSelected = powerOff) { Text("Power off") }
-            )
-          )
+          PopupMenuButton {
+            PopupMenuItem(onSelected = powerOff) { Text("Power off") }
+          }
         }
       )
     }
@@ -88,7 +85,12 @@ import kotlinx.coroutines.flow.flatMapLatest
       VerticalList {
         if (value.isEmpty()) {
           item {
-            Text("No soundbokses found")
+            Text(
+              modifier = Modifier
+                .fillParentMaxSize()
+                .center(),
+              text = "No soundbokses found"
+            )
           }
         } else {
           item {
@@ -216,10 +218,8 @@ data class HomeModel(
 
 @Provide fun homeModel(
   appForegroundState: Flow<AppForegroundState>,
-  logger: Logger,
   navigator: Navigator,
   pref: DataStore<SoundboksPrefs>,
-  remote: SoundboksRemote,
   repository: SoundboksRepository,
   usecases: SoundboksUsecases
 ) = Model {
@@ -275,29 +275,17 @@ data class HomeModel(
     },
     config = config,
     updateSoundProfile = action {
-      navigator.push(
-        ListKey(
-          items = SoundProfile.values()
-            .map { ListKey.Item(it, it.name) }
-        )
-      )?.let { updateConfig { copy(soundProfile = it) } }
+      navigator.push(ListKey(SoundProfile.values().toList()))
+        ?.let { updateConfig { copy(soundProfile = it) } }
     },
     updateVolume = action { volume -> updateConfig { copy(volume = volume) } },
     updateChannel = action {
-      navigator.push(
-        ListKey(
-          items = SoundChannel.values()
-            .map { ListKey.Item(it, it.name) }
-        )
+      navigator.push(ListKey(items = SoundChannel.values().toList())
       )?.let { updateConfig { copy(channel = it) } }
     },
     updateTeamUpMode = action {
-      navigator.push(
-        ListKey(
-          items = TeamUpMode.values()
-            .map { ListKey.Item(it, it.name) }
-        )
-      )?.let { updateConfig { copy(teamUpMode = it) } }
+      navigator.push(ListKey(items = TeamUpMode.values().toList()))
+        ?.let { updateConfig { copy(teamUpMode = it) } }
     },
     powerOff = action {
       prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) }

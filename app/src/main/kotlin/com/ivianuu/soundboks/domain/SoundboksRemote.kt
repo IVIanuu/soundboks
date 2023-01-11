@@ -37,18 +37,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.*
 
+context(AppContext, BroadcastsFactory, Logger)
 @Provide @Scoped<AppScope> class SoundboksRemote(
-  private val appContext: AppContext,
   private val bluetoothManager: @SystemService BluetoothManager,
-  private val broadcastsFactory: BroadcastsFactory,
   private val context: IOContext,
-  private val logger: Logger,
   scope: NamedCoroutineScope<AppScope>
 ) {
   private val servers = RefCountedResource<String, SoundboksServer>(
     scope = scope,
     timeout = 5.seconds,
-    create = { SoundboksServer(it, context, logger, appContext, bluetoothManager) },
+    create = { SoundboksServer(it, context, bluetoothManager) },
     release = { _, server -> server.close() }
   )
 
@@ -66,7 +64,7 @@ import java.util.*
 
   suspend fun <R> withSoundboks(
     address: String,
-    block: suspend SoundboksServer.() -> R
+    block: suspend context(SoundboksServer) () -> R
   ): R? = withContext(context) {
     servers.withResource(address) {
       race(
@@ -83,7 +81,7 @@ import java.util.*
     }
   }
 
-  fun bondedDeviceChanges() = broadcastsFactory(
+  fun bondedDeviceChanges() = broadcasts(
     BluetoothAdapter.ACTION_STATE_CHANGED,
     BluetoothDevice.ACTION_BOND_STATE_CHANGED,
     BluetoothDevice.ACTION_ACL_CONNECTED,
@@ -91,12 +89,11 @@ import java.util.*
   )
 }
 
+context(AppContext, Logger)
 @SuppressLint("MissingPermission")
 class SoundboksServer(
   address: String,
   private val context: IOContext,
-  @Provide private val logger: Logger,
-  appContext: AppContext,
   bluetoothManager: BluetoothManager
 ) {
   val connectionState = MutableSharedFlow<Boolean>(
@@ -118,7 +115,7 @@ class SoundboksServer(
   private val gatt = bluetoothManager.adapter
     .getRemoteDevice(address)
     .connectGatt(
-      appContext,
+      this@AppContext,
       true,
       object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {

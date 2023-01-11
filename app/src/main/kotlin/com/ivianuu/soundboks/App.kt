@@ -6,14 +6,13 @@ package com.ivianuu.soundboks
 
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.app.EsApp
-import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Providers
 import com.ivianuu.injekt.common.Elements
 import com.ivianuu.injekt.common.Scope
 import com.ivianuu.injekt.inject
 
 class App : EsApp() {
-  override fun buildAppElements(@Inject scope: Scope<AppScope>): Elements<AppScope> =
+  context(Scope<AppScope>) override fun buildAppElements(): Elements<AppScope> =
     @Providers(
       ".**",
       "com.ivianuu.essentials.logging.AndroidLogger.Companion.androidLogger"

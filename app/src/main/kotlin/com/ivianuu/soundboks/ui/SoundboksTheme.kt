@@ -19,7 +19,7 @@ object SoundboksTheme {
   val Secondary = Color(0xFFE66767)
 }
 
-@Provide fun soundboksTheme(resourceProvider: ResourceProvider) = AppTheme { content ->
+context(ResourceProvider) @Provide fun soundboksTheme() = AppTheme { content ->
   EsTheme(
     colors = LightAndDarkColors(
       primary = SoundboksTheme.Primary,
