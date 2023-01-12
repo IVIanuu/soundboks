@@ -32,9 +32,9 @@ import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.getOrNull
-import com.ivianuu.essentials.state.action
-import com.ivianuu.essentials.state.bind
-import com.ivianuu.essentials.state.bindResource
+import com.ivianuu.essentials.compose.action
+import com.ivianuu.essentials.compose.bind
+import com.ivianuu.essentials.compose.bindResource
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.ListKey
 import com.ivianuu.essentials.ui.layout.center

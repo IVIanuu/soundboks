@@ -10,7 +10,7 @@ import com.ivianuu.essentials.coroutines.combine
 import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
-import com.ivianuu.essentials.permission.PermissionStateFactory
+import com.ivianuu.essentials.permission.PermissionManager
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
@@ -38,12 +38,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.reflect.KClass
 
-context(IOContext, Logger, NamedCoroutineScope<AppScope>, SoundboksRemote)
+context(IOContext, Logger, NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
 @Provide @Scoped<AppScope> class SoundboksRepository(
-  private val bluetoothManager: @SystemService BluetoothManager,
-  permissionStateFactory: PermissionStateFactory
+  private val bluetoothManager: @SystemService BluetoothManager
 ) {
-  val soundbokses: Flow<List<Soundboks>> = permissionStateFactory(soundboksPermissionKeys)
+  val soundbokses: Flow<List<Soundboks>> = permissionState(soundboksPermissionKeys)
     .flatMapLatest {
       if (!it) flowOf(emptyList())
       else combine(

@@ -42,7 +42,6 @@ import java.util.*
 context(AppContext, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<AppScope>)
 @Provide @Scoped<AppScope> class SoundboksRemote(private val bluetoothManager: @SystemService BluetoothManager) {
   private val servers = RefCountedResource<String, SoundboksServer>(
-    scope = inject(),
     timeout = 5.seconds,
     create = { SoundboksServer(it) },
     release = { _, server -> server.close() }
