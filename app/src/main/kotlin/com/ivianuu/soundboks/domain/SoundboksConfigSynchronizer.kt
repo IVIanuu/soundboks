@@ -34,7 +34,7 @@ context(Logger, SoundboksRemote, SoundboksPrefsContext, SoundboksRepository)
   }
 }
 
-context(Logger) private suspend fun SoundboksServer.applyConfig(config: SoundboksConfig) {
+context(Logger, SoundboksServer) private suspend fun applyConfig(config: SoundboksConfig) {
   log { "${device.debugName()} -> apply config $config" }
 
   send(
