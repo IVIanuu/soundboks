@@ -19,10 +19,10 @@ import kotlinx.coroutines.flow.map
 import java.util.*
 
 context(Logger, SoundboksRemote, SoundboksPrefsContext, SoundboksRepository)
-@Provide fun soundboksConfigApplier() = ScopeWorker<AppForegroundScope> {
+    @Provide fun soundboksConfigApplier() = ScopeWorker<AppForegroundScope> {
   soundbokses.collectLatest { soundbokses ->
     soundbokses.parForEach { soundboks ->
-      withSoundboks(soundboks.address) {
+      withSoundboks<Unit>(soundboks.address) {
         pref.data
           .map { it.configs[soundboks.address] ?: SoundboksConfig() }
           .distinctUntilChanged()
