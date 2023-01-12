@@ -11,15 +11,15 @@ import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
+import com.ivianuu.soundboks.data.SoundboksPrefsContext
 import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.util.*
 
-context(Logger, SoundboksRemote, SoundboksRepository) @Provide fun soundboksConfigApplier(
-  pref: DataStore<SoundboksPrefs>
-) = ScopeWorker<AppForegroundScope> {
+context(Logger, SoundboksRemote, SoundboksPrefsContext, SoundboksRepository)
+@Provide fun soundboksConfigApplier() = ScopeWorker<AppForegroundScope> {
   soundbokses.collectLatest { soundbokses ->
     soundbokses.parForEach { soundboks ->
       withSoundboks(soundboks.address) {

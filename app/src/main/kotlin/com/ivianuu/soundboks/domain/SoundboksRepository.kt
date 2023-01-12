@@ -36,11 +36,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.reflect.KClass
 
-context(Logger, NamedCoroutineScope<AppScope>, SoundboksRemote)
+context(IOContext, Logger, NamedCoroutineScope<AppScope>, SoundboksRemote)
 @Provide @Scoped<AppScope> class SoundboksRepository(
   private val bluetoothManager: @SystemService BluetoothManager,
-  private val context: IOContext,
   permissionStateFactory: PermissionStateFactory
 ) {
   val soundbokses: Flow<List<Soundboks>> = permissionStateFactory(soundboksPermissionKeys)
@@ -145,5 +145,5 @@ context(Logger, NamedCoroutineScope<AppScope>, SoundboksRemote)
         }
     }
     .distinctUntilChanged()
-    .flowOn(context)
+    .flowOn(this@IOContext)
 }

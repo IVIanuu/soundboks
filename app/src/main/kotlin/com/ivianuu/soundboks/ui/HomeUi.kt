@@ -43,6 +43,7 @@ import com.ivianuu.essentials.ui.material.Scaffold
 import com.ivianuu.essentials.ui.material.TopAppBar
 import com.ivianuu.essentials.ui.material.guessingContentColorFor
 import com.ivianuu.essentials.ui.material.incrementingStepPolicy
+import com.ivianuu.essentials.ui.navigation.KeyUiContext
 import com.ivianuu.essentials.ui.navigation.Model
 import com.ivianuu.essentials.ui.navigation.ModelKeyUi
 import com.ivianuu.essentials.ui.navigation.Navigator
@@ -59,6 +60,7 @@ import com.ivianuu.soundboks.data.SoundProfile
 import com.ivianuu.soundboks.data.Soundboks
 import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
+import com.ivianuu.soundboks.data.SoundboksPrefsContext
 import com.ivianuu.soundboks.data.TeamUpMode
 import com.ivianuu.soundboks.data.merge
 import com.ivianuu.soundboks.domain.SoundboksRepository
@@ -216,18 +218,13 @@ data class HomeModel(
   val powerOff: () -> Unit
 )
 
-@Provide fun homeModel(
-  appForegroundState: Flow<AppForegroundState>,
-  navigator: Navigator,
-  pref: DataStore<SoundboksPrefs>,
-  repository: SoundboksRepository,
-  usecases: SoundboksUsecases
-) = Model {
+context(KeyUiContext<HomeKey>, SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
+@Provide fun homeModel(appForegroundState: Flow<AppForegroundState>) = Model {
   val prefs = pref.data.bind(SoundboksPrefs())
 
   val soundbokses = appForegroundState
     .flatMapLatest {
-      if (it == AppForegroundState.FOREGROUND) repository.soundbokses
+      if (it == AppForegroundState.FOREGROUND) soundbokses
       else infiniteEmptyFlow()
     }
     .bindResource()
@@ -288,7 +285,7 @@ data class HomeModel(
         ?.let { updateConfig { copy(teamUpMode = it) } }
     },
     powerOff = action {
-      prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) }
+      prefs.selectedSoundbokses.parForEach { powerOff(it) }
     }
   )
 }

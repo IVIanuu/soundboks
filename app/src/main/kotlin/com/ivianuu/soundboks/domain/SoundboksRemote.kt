@@ -19,11 +19,13 @@ import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.time.seconds
 import com.ivianuu.essentials.util.BroadcastsFactory
+import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
 import com.ivianuu.injekt.coroutines.IOContext
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
+import com.ivianuu.injekt.inject
 import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -37,16 +39,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.*
 
-context(AppContext, BroadcastsFactory, Logger)
-@Provide @Scoped<AppScope> class SoundboksRemote(
-  private val bluetoothManager: @SystemService BluetoothManager,
-  private val context: IOContext,
-  scope: NamedCoroutineScope<AppScope>
-) {
+context(AppContext, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<AppScope>)
+@Provide @Scoped<AppScope> class SoundboksRemote(private val bluetoothManager: @SystemService BluetoothManager) {
   private val servers = RefCountedResource<String, SoundboksServer>(
-    scope = scope,
+    scope = inject(),
     timeout = 5.seconds,
-    create = { SoundboksServer(it, context, bluetoothManager) },
+    create = { SoundboksServer(it) },
     release = { _, server -> server.close() }
   )
 
@@ -54,7 +52,7 @@ context(AppContext, BroadcastsFactory, Logger)
     .onStart<Any> { emit(Unit) }
     .map { address.isConnected() }
     .distinctUntilChanged()
-    .flowOn(context)
+    .flowOn(this@IOContext)
 
   private fun String.isConnected(): Boolean =
     bluetoothManager.adapter.getRemoteDevice(this)
@@ -65,7 +63,7 @@ context(AppContext, BroadcastsFactory, Logger)
   suspend fun <R> withSoundboks(
     address: String,
     block: suspend context(SoundboksServer) () -> R
-  ): R? = withContext(context) {
+  ): R? = withContext(this@IOContext) {
     servers.withResource(address) {
       race(
         {
@@ -89,13 +87,9 @@ context(AppContext, BroadcastsFactory, Logger)
   )
 }
 
-context(AppContext, Logger)
+context(AppContext, IOContext, Logger)
 @SuppressLint("MissingPermission")
-class SoundboksServer(
-  address: String,
-  private val context: IOContext,
-  bluetoothManager: BluetoothManager
-) {
+class SoundboksServer(address: String, @Inject bluetoothManager: @SystemService BluetoothManager) {
   val connectionState = MutableSharedFlow<Boolean>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
@@ -144,7 +138,7 @@ class SoundboksServer(
     serviceId: UUID,
     characteristicId: UUID,
     message: ByteArray
-  ) = withContext(context) {
+  ) = withContext(this@IOContext) {
     val service = gatt.getService(serviceId) ?: error(
       "${device.debugName()} service not found $serviceId $characteristicId ${
         gatt.services.map {
@@ -164,7 +158,7 @@ class SoundboksServer(
     }
   }
 
-  suspend fun close() = withContext(context) {
+  suspend fun close() = withContext(this@IOContext) {
     log { "${device.debugName()} close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }

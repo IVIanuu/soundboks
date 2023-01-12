@@ -19,13 +19,13 @@ object SoundboksTheme {
   val Secondary = Color(0xFFE66767)
 }
 
-context(ResourceProvider) @Provide fun soundboksTheme() = AppTheme { content ->
-  EsTheme(
-    colors = LightAndDarkColors(
-      primary = SoundboksTheme.Primary,
-      secondary = SoundboksTheme.Secondary
-    ),
-    typography = EsTypography.editEach { copy(fontFamily = Rubik) },
-    content = content
-  )
-}
+@Provide val soundboksTheme = AppTheme { content ->
+    EsTheme(
+      colors = LightAndDarkColors(
+        primary = SoundboksTheme.Primary,
+        secondary = SoundboksTheme.Secondary
+      ),
+      typography = EsTypography.editEach { copy(fontFamily = Rubik) },
+      content = content
+    )
+  }
