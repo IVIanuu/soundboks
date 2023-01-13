@@ -26,12 +26,12 @@ fun Soundboks.debugName() = "[$name ~ $address]"
   val configs: Map<String, SoundboksConfig> = emptyMap(),
   val selectedSoundbokses: Set<String> = emptySet()
 ) {
+  @Provide @JvmInline value class Context(val soundboksPref: DataStore<SoundboksPrefs>)
+
   companion object {
     @Provide val prefModule = DataStoreModule("soundboks_prefs") { SoundboksPrefs() }
   }
 }
-
-@Provide @JvmInline value class SoundboksPrefsContext(val pref: DataStore<SoundboksPrefs>)
 
 @Serializable data class SoundboksConfig(
   val volume: Float = 0.5f,

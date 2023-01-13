@@ -10,7 +10,8 @@ import com.ivianuu.injekt.Provide
 import com.ivianuu.soundboks.data.SoundChannel
 import com.ivianuu.soundboks.data.SoundProfile
 import com.ivianuu.soundboks.data.SoundboksConfig
-import com.ivianuu.soundboks.data.SoundboksPrefsContext
+import com.ivianuu.soundboks.data.SoundboksPrefs
+import com.ivianuu.soundboks.data.SoundboksPrefs.Context
 import com.ivianuu.soundboks.data.TeamUpMode
 import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.flow.collectLatest
@@ -22,13 +23,13 @@ import java.util.*
 import kotlin.reflect.KMutableProperty0
 import kotlin.reflect.KMutableProperty1
 
-context(Logger, SoundboksRemote, SoundboksPrefsContext, SoundboksRepository)
+context(Logger, SoundboksRemote, SoundboksPrefs.Context, SoundboksRepository)
     @Provide fun soundboksConfigApplier() = ScopeWorker<AppForegroundScope> {
   soundbokses.collectLatest { soundbokses ->
     soundbokses.parForEach { soundboks ->
       withSoundboks(soundboks.address) {
         val cache = Cache()
-        pref.data
+        soundboksPref.data
           .map { it.configs[soundboks.address] ?: SoundboksConfig() }
           .distinctUntilChanged()
           .collectLatest { config ->

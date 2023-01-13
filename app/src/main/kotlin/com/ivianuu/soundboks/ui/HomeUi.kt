@@ -58,7 +58,6 @@ import com.ivianuu.soundboks.data.SoundProfile
 import com.ivianuu.soundboks.data.Soundboks
 import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
-import com.ivianuu.soundboks.data.SoundboksPrefsContext
 import com.ivianuu.soundboks.data.TeamUpMode
 import com.ivianuu.soundboks.data.merge
 import com.ivianuu.soundboks.domain.SoundboksRepository
@@ -217,9 +216,9 @@ data class HomeModel(
 )
 
 context(AppForegroundState.Provider, KeyUiContext<HomeKey>,
-SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
+SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
 @Provide fun homeModel() = Model {
-  val prefs = pref.data.bind(SoundboksPrefs())
+  val prefs = soundboksPref.data.bind(SoundboksPrefs())
 
   val soundbokses = appForegroundState
     .flatMapLatest {
@@ -233,7 +232,7 @@ SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
     .merge()
 
   suspend fun updateConfig(block: SoundboksConfig.() -> SoundboksConfig) {
-    pref.updateData {
+    soundboksPref.updateData {
       copy(
         configs = buildMap {
           putAll(configs)
@@ -249,7 +248,7 @@ SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
     soundbokses = soundbokses,
     selectedSoundbokses = prefs.selectedSoundbokses,
     toggleSoundboksSelection = action { soundboks, longClick ->
-      pref.updateData {
+      soundboksPref.updateData {
         copy(
           selectedSoundbokses = if (!longClick) setOf(soundboks.address)
           else selectedSoundbokses.toMutableSet().apply {
@@ -260,7 +259,7 @@ SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
       }
     },
     toggleAllSoundboksSelections = action {
-      pref.updateData {
+      soundboksPref.updateData {
         val allSoundbokses =
           soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
         copy(
