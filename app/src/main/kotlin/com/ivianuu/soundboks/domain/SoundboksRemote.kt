@@ -25,7 +25,6 @@ import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
 import com.ivianuu.injekt.coroutines.IOContext
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
-import com.ivianuu.injekt.inject
 import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -39,8 +38,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.*
 
-context(AppContext, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<AppScope>)
-@Provide @Scoped<AppScope> class SoundboksRemote(private val bluetoothManager: @SystemService BluetoothManager) {
+context(AppContext, BluetoothManager, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<AppScope>)
+@Provide @Scoped<AppScope> class SoundboksRemote {
   private val servers = RefCountedResource<String, SoundboksServer>(
     timeout = 5.seconds,
     create = { SoundboksServer(it) },
@@ -54,7 +53,7 @@ context(AppContext, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<Ap
     .flowOn(this@IOContext)
 
   private fun String.isConnected(): Boolean =
-    bluetoothManager.adapter.getRemoteDevice(this)
+    adapter.getRemoteDevice(this)
       ?.let {
         BluetoothDevice::class.java.getDeclaredMethod("isConnected").invoke(it) as Boolean
       } ?: false
@@ -86,9 +85,9 @@ context(AppContext, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<Ap
   )
 }
 
-context(AppContext, IOContext, Logger)
+context(AppContext, BluetoothManager, IOContext, Logger)
 @SuppressLint("MissingPermission")
-class SoundboksServer(address: String, @Inject bluetoothManager: @SystemService BluetoothManager) {
+class SoundboksServer(address: String) {
   val connectionState = MutableSharedFlow<Boolean>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
@@ -100,12 +99,12 @@ class SoundboksServer(address: String, @Inject bluetoothManager: @SystemService 
     onBufferOverflow = BufferOverflow.SUSPEND
   )
 
-  val device = bluetoothManager.adapter.getRemoteDevice(address)
+  val device = adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 250.milliseconds)
+  private val sendLimiter = RateLimiter(1, 500.milliseconds)
 
-  private val gatt = bluetoothManager.adapter
+  private val gatt = adapter
     .getRemoteDevice(address)
     .connectGatt(
       this@AppContext,

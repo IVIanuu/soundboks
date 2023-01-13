@@ -27,14 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
 import com.ivianuu.essentials.app.AppForegroundState
-import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
-import com.ivianuu.essentials.coroutines.parForEach
-import com.ivianuu.essentials.data.DataStore
-import com.ivianuu.essentials.resource.Resource
-import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.compose.action
 import com.ivianuu.essentials.compose.bind
 import com.ivianuu.essentials.compose.bindResource
+import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
+import com.ivianuu.essentials.coroutines.parForEach
+import com.ivianuu.essentials.resource.Resource
+import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.ListKey
 import com.ivianuu.essentials.ui.layout.center
@@ -46,7 +45,6 @@ import com.ivianuu.essentials.ui.material.incrementingStepPolicy
 import com.ivianuu.essentials.ui.navigation.KeyUiContext
 import com.ivianuu.essentials.ui.navigation.Model
 import com.ivianuu.essentials.ui.navigation.ModelKeyUi
-import com.ivianuu.essentials.ui.navigation.Navigator
 import com.ivianuu.essentials.ui.navigation.RootKey
 import com.ivianuu.essentials.ui.navigation.push
 import com.ivianuu.essentials.ui.popup.PopupMenuButton
@@ -218,8 +216,9 @@ data class HomeModel(
   val powerOff: () -> Unit
 )
 
-context(KeyUiContext<HomeKey>, SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
-@Provide fun homeModel(appForegroundState: Flow<AppForegroundState>) = Model {
+context(AppForegroundState.Provider, KeyUiContext<HomeKey>,
+SoundboksPrefsContext, SoundboksRepository, SoundboksUsecases)
+@Provide fun homeModel() = Model {
   val prefs = pref.data.bind(SoundboksPrefs())
 
   val soundbokses = appForegroundState

@@ -12,7 +12,6 @@ import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
 import com.ivianuu.injekt.Provide
-import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
 import com.ivianuu.injekt.coroutines.IOContext
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
@@ -36,12 +35,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.reflect.KClass
 
-context(IOContext, Logger, NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
-@Provide @Scoped<AppScope> class SoundboksRepository(
-  private val bluetoothManager: @SystemService BluetoothManager
-) {
+context(BluetoothManager, IOContext, Logger,
+NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
+@Provide @Scoped<AppScope> class SoundboksRepository {
   val soundbokses: Flow<List<Soundboks>> = permissionState(soundboksPermissionKeys)
     .flatMapLatest {
       if (!it) flowOf(emptyList())
@@ -97,7 +94,7 @@ context(IOContext, Logger, NamedCoroutineScope<AppScope>, PermissionManager, Sou
       }
     }
 
-    bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
+    getConnectedDevices(BluetoothProfile.GATT)
       .filter { it.isSoundboks() }
       .forEach { handleSoundboks(it.toSoundboks()) }
 
@@ -112,10 +109,10 @@ context(IOContext, Logger, NamedCoroutineScope<AppScope>, PermissionManager, Sou
     }
 
     log { "start scan" }
-    bluetoothManager.adapter.bluetoothLeScanner.startScan(callback)
+    adapter.bluetoothLeScanner.startScan(callback)
     awaitClose {
       log { "stop scan" }
-      bluetoothManager.adapter.bluetoothLeScanner.stopScan(callback)
+      adapter.bluetoothLeScanner.stopScan(callback)
     }
   }
 
@@ -123,7 +120,7 @@ context(IOContext, Logger, NamedCoroutineScope<AppScope>, PermissionManager, Sou
   private fun bondedSoundbokses(): Flow<List<Soundboks>> = bondedDeviceChanges()
     .onStart<Any> { emit(Unit) }
     .map {
-      bluetoothManager.adapter?.bondedDevices
+      adapter?.bondedDevices
         ?.filter { it.isSoundboks() }
         ?.map { it.toSoundboks() }
         ?: emptyList()
