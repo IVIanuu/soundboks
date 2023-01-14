@@ -15,7 +15,8 @@ data class Soundboks(val address: String, val name: String)
 fun BluetoothDevice.toSoundboks() = Soundboks(address, alias ?: name)
 
 fun BluetoothDevice.isSoundboks() = (alias ?: name).let {
-  it?.startsWith("#", ignoreCase = true) == true
+  it?.startsWith("#", ignoreCase = true) == true ||
+      it.contains("SOUNDBOKS", ignoreCase = true)
 }
 
 fun BluetoothDevice.debugName() = "[${alias ?: name} ~ $address]"
