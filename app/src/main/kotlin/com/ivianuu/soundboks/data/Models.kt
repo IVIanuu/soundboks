@@ -16,7 +16,7 @@ fun BluetoothDevice.toSoundboks() = Soundboks(address, alias ?: name)
 
 fun BluetoothDevice.isSoundboks() = (alias ?: name).let {
   it?.startsWith("#", ignoreCase = true) == true ||
-      it.contains("SOUNDBOKS", ignoreCase = true)
+      it?.contains("SOUNDBOKS", ignoreCase = true) == true
 }
 
 fun BluetoothDevice.debugName() = "[${alias ?: name} ~ $address]"
