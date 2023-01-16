@@ -8,6 +8,7 @@ import android.bluetooth.le.ScanResult
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.coroutines.combine
 import com.ivianuu.essentials.coroutines.onCancel
+import com.ivianuu.essentials.coroutines.share
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
@@ -51,7 +52,7 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
           .sortedBy { it.name }
       }
     }
-    .shareIn(this@NamedCoroutineScope, SharingStarted.WhileSubscribed(2000), 1)
+    .share(SharingStarted.WhileSubscribed(2000), 1)
 
   private val foundSoundbokses = mutableSetOf<Soundboks>()
   private val soundboksLock = Mutex()
