@@ -1,40 +1,49 @@
 package com.ivianuu.soundboks.domain
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import com.ivianuu.essentials.app.AppForegroundScope
 import com.ivianuu.essentials.app.ScopeWorker
+import com.ivianuu.essentials.compose.bind
+import com.ivianuu.essentials.compose.launchState
 import com.ivianuu.essentials.coroutines.ExitCase
 import com.ivianuu.essentials.coroutines.guarantee
+import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.injekt.Provide
+import com.ivianuu.injekt.coroutines.NamedCoroutineScope
 import com.ivianuu.soundboks.data.SoundChannel
 import com.ivianuu.soundboks.data.SoundProfile
 import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
 import com.ivianuu.soundboks.data.TeamUpMode
 import com.ivianuu.soundboks.data.debugName
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.util.*
 import kotlin.reflect.KMutableProperty0
 
-context(Logger, SoundboksRemote, SoundboksPrefs.Context, SoundboksRepository)
+context(Logger, NamedCoroutineScope<AppForegroundScope>, SoundboksRemote, SoundboksPrefs.Context, SoundboksRepository)
     @Provide fun soundboksConfigApplier() = ScopeWorker<AppForegroundScope> {
-  soundbokses.collectLatest { soundbokses ->
-    log { "soundbokses changed $soundbokses" }
-    soundbokses.parForEach { soundboks ->
-      withSoundboks(soundboks.address) {
-        val cache = Cache()
-        soundboksPref.data
-          .map { it.configs[soundboks.address] ?: SoundboksConfig() }
-          .distinctUntilChanged()
-          .collectLatest { config ->
-            log { "config changed $config" }
-            applyConfig(config, cache)
+  launchState({}) {
+    soundbokses.bind(emptyList()).forEach { soundboks ->
+      key(soundboks) {
+        LaunchedEffect(true) {
+          withSoundboks(soundboks.address) {
+            val cache = Cache()
+            soundboksPref.data
+              .map { it.configs[soundboks.address] ?: SoundboksConfig() }
+              .distinctUntilChanged()
+              .collectLatest { config ->
+                applyConfig(config, cache)
+              }
           }
+        }
       }
     }
   }
