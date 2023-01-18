@@ -8,8 +8,6 @@ import com.ivianuu.essentials.compose.bind
 import com.ivianuu.essentials.compose.launchState
 import com.ivianuu.essentials.coroutines.ExitCase
 import com.ivianuu.essentials.coroutines.guarantee
-import com.ivianuu.essentials.coroutines.onCancel
-import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
@@ -21,7 +19,6 @@ import com.ivianuu.soundboks.data.SoundboksConfig
 import com.ivianuu.soundboks.data.SoundboksPrefs
 import com.ivianuu.soundboks.data.TeamUpMode
 import com.ivianuu.soundboks.data.debugName
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
