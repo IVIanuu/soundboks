@@ -52,13 +52,15 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
           .sortedBy { it.name }
       }
     }
+    .distinctUntilChanged()
+    .flowOn(this@IOContext)
     .share(SharingStarted.WhileSubscribed(2000), 1)
 
   private val foundSoundbokses = mutableSetOf<Soundboks>()
   private val soundboksLock = Mutex()
 
   @SuppressLint("MissingPermission")
-  private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow {
+  private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow<List<Soundboks>> {
     val soundbokses = mutableListOf<Soundboks>()
     trySend(emptyList())
 
@@ -141,6 +143,4 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
             .map { it.first }
         }
     }
-    .distinctUntilChanged()
-    .flowOn(this@IOContext)
 }
