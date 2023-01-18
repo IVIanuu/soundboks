@@ -52,9 +52,9 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
           .sortedBy { it.name }
       }
     }
-    .distinctUntilChanged()
     .flowOn(this@IOContext)
     .share(SharingStarted.WhileSubscribed(2000), 1)
+    .distinctUntilChanged()
 
   private val foundSoundbokses = mutableSetOf<Soundboks>()
   private val soundboksLock = Mutex()

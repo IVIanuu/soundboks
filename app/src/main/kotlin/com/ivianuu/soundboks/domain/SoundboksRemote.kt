@@ -19,9 +19,7 @@ import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.time.seconds
 import com.ivianuu.essentials.util.BroadcastsFactory
-import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
-import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
 import com.ivianuu.injekt.coroutines.IOContext
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
@@ -102,7 +100,7 @@ class SoundboksServer(address: String) {
   val device = adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 500.milliseconds)
+  private val sendLimiter = RateLimiter(1, 100.milliseconds)
 
   private val gatt = adapter
     .getRemoteDevice(address)
