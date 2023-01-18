@@ -145,12 +145,10 @@ class SoundboksServer(address: String) {
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     sendLock.withLock {
-      if (!message.contentEquals(characteristic.value)) {
-        log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
-        characteristic.value = message
-        sendLimiter.acquire()
-        gatt.writeCharacteristic(characteristic)
-      }
+      log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+      characteristic.value = message
+      sendLimiter.acquire()
+      gatt.writeCharacteristic(characteristic)
     }
   }
 
