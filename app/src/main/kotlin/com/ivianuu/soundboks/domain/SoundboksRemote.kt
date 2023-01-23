@@ -100,7 +100,7 @@ class SoundboksServer(address: String) {
   val device = adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 300.milliseconds)
+  private val sendLimiter = RateLimiter(1, 25.milliseconds)
 
   private val gatt = adapter
     .getRemoteDevice(address)
@@ -147,8 +147,8 @@ class SoundboksServer(address: String) {
     sendLock.withLock {
       log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
       characteristic.value = message
-      sendLimiter.acquire()
       gatt.writeCharacteristic(characteristic)
+      sendLimiter.acquire()
     }
   }
 
