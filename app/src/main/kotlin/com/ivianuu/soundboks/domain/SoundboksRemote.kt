@@ -100,7 +100,7 @@ class SoundboksServer(address: String) {
   val device = adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 25.milliseconds)
+  private val sendLimiter = RateLimiter(1, 100.milliseconds)
 
   private val gatt = adapter
     .getRemoteDevice(address)
