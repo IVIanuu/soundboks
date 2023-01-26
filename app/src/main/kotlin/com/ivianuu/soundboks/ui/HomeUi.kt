@@ -9,10 +9,17 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.LocalTextStyle
@@ -21,6 +28,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,12 +42,15 @@ import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
 import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.getOrNull
+import com.ivianuu.essentials.ui.common.UiRenderer
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.ListKey
 import com.ivianuu.essentials.ui.layout.center
+import com.ivianuu.essentials.ui.material.Button
 import com.ivianuu.essentials.ui.material.ListItem
 import com.ivianuu.essentials.ui.material.Scaffold
 import com.ivianuu.essentials.ui.material.TopAppBar
+import com.ivianuu.essentials.ui.material.esButtonColors
 import com.ivianuu.essentials.ui.material.guessingContentColorFor
 import com.ivianuu.essentials.ui.material.incrementingStepPolicy
 import com.ivianuu.essentials.ui.navigation.KeyUiContext
@@ -52,6 +63,7 @@ import com.ivianuu.essentials.ui.popup.PopupMenuItem
 import com.ivianuu.essentials.ui.prefs.ScaledPercentageUnitText
 import com.ivianuu.essentials.ui.prefs.SliderListItem
 import com.ivianuu.essentials.ui.resource.ResourceBox
+import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.soundboks.data.SoundChannel
 import com.ivianuu.soundboks.data.SoundProfile
@@ -138,29 +150,69 @@ import kotlinx.coroutines.flow.flatMapLatest
             }
 
             item {
-              ListItem(
-                modifier = Modifier.clickable(onClick = updateSoundProfile),
-                title = { Text("Sound profile") },
-                subtitle = { Text(config.soundProfile.name) }
+              ToggleButtonGroup(
+                selected = config.soundProfile,
+                values = SoundProfile.values().toList(),
+                onSelectionChanged = updateSoundProfile,
+                title = "Sound profile"
               )
             }
 
             item {
-              ListItem(
-                modifier = Modifier.clickable(onClick = updateChannel),
-                title = { Text("Channel") },
-                subtitle = { Text(config.channel.name) }
+              ToggleButtonGroup(
+                selected = config.channel,
+                values = SoundChannel.values().toList(),
+                onSelectionChanged = updateChannel,
+                title = "Channel"
               )
             }
 
             item {
-              ListItem(
-                modifier = Modifier.clickable(onClick = updateTeamUpMode),
-                title = { Text("Team up") },
-                subtitle = { Text(config.teamUpMode.name) }
+              ToggleButtonGroup(
+                selected = config.teamUpMode,
+                values = TeamUpMode.values().toList(),
+                onSelectionChanged = updateTeamUpMode,
+                title = "Team up mode"
               )
             }
           }
+        }
+      }
+    }
+  }
+}
+
+@Composable private fun <T> ToggleButtonGroup(
+  selected: T,
+  values: List<T>,
+  onSelectionChanged: (T) -> Unit,
+  title: String,
+  @Inject renderer: UiRenderer<T>
+) = with(renderer) {
+  Column(
+    modifier = Modifier
+      .height(88.dp)
+      .padding(horizontal = 16.dp),
+    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+  ) {
+    Text(
+      text = title,
+      style = MaterialTheme.typography.subtitle1
+    )
+
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+      values.forEach { value ->
+        Button(
+          colors = ButtonDefaults.esButtonColors(
+            backgroundColor = if (value == selected) MaterialTheme.colors.secondary
+            else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
+          ),
+          onClick = { onSelectionChanged(value) }
+        ) {
+          Text(value.toUiString())
         }
       }
     }
@@ -208,10 +260,10 @@ data class HomeModel(
   val toggleSoundboksSelection: (Soundboks, Boolean) -> Unit,
   val toggleAllSoundboksSelections: () -> Unit,
   val config: SoundboksConfig,
-  val updateSoundProfile: () -> Unit,
-  val updateChannel: () -> Unit,
+  val updateSoundProfile: (SoundProfile) -> Unit,
+  val updateChannel: (SoundChannel) -> Unit,
   val updateVolume: (Float) -> Unit,
-  val updateTeamUpMode: () -> Unit,
+  val updateTeamUpMode: (TeamUpMode) -> Unit,
   val powerOff: () -> Unit
 )
 
@@ -269,21 +321,10 @@ SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
       }
     },
     config = config,
-    updateSoundProfile = action {
-      navigator.push(ListKey(SoundProfile.values().toList()))
-        ?.let { updateConfig { copy(soundProfile = it) } }
-    },
+    updateSoundProfile = action { value -> updateConfig { copy(soundProfile = value) } },
     updateVolume = action { volume -> updateConfig { copy(volume = volume) } },
-    updateChannel = action {
-      navigator.push(ListKey(items = SoundChannel.values().toList())
-      )?.let { updateConfig { copy(channel = it) } }
-    },
-    updateTeamUpMode = action {
-      navigator.push(ListKey(items = TeamUpMode.values().toList()))
-        ?.let { updateConfig { copy(teamUpMode = it) } }
-    },
-    powerOff = action {
-      prefs.selectedSoundbokses.parForEach { powerOff(it) }
-    }
+    updateChannel = action { value -> updateConfig { copy(channel = value) } },
+    updateTeamUpMode = action { value -> updateConfig { copy(teamUpMode = value) } },
+    powerOff = action { prefs.selectedSoundbokses.parForEach { powerOff(it) } }
   )
 }
