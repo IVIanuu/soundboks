@@ -6,6 +6,7 @@ package com.ivianuu.soundboks.data
 
 import android.bluetooth.BluetoothDevice
 import com.ivianuu.essentials.android.prefs.DataStoreModule
+import com.ivianuu.essentials.android.prefs.PrefModule
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.injekt.Provide
 import kotlinx.serialization.Serializable
@@ -30,7 +31,7 @@ fun Soundboks.debugName() = "[$name ~ $address]"
   @Provide @JvmInline value class Context(val soundboksPref: DataStore<SoundboksPrefs>)
 
   companion object {
-    @Provide val prefModule = DataStoreModule("soundboks_prefs") { SoundboksPrefs() }
+    @Provide val prefModule = PrefModule { SoundboksPrefs() }
   }
 }
 

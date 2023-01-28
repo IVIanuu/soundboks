@@ -62,7 +62,6 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
   @SuppressLint("MissingPermission")
   private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow<List<Soundboks>> {
     val soundbokses = mutableListOf<Soundboks>()
-    trySend(emptyList())
 
     fun handleSoundboks(soundboks: Soundboks) {
       launch {
