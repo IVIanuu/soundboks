@@ -142,7 +142,7 @@ import kotlinx.coroutines.flow.flatMapLatest
             item {
               SliderListItem(
                 value = config.volume,
-                onValueChange = updateVolume,
+                onValueChangeFinished = updateVolume,
                 stepPolicy = incrementingStepPolicy(0.05f),
                 title = { Text("Volume") },
                 valueText = { ScaledPercentageUnitText(it) }
