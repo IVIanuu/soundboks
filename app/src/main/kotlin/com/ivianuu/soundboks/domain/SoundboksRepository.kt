@@ -46,11 +46,13 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
       else combine(
         bleSoundbokses(),
         bondedSoundbokses()
-      ).map {
-        (it.a + it.b)
-          .distinctBy { it.address }
-          .sortedBy { it.name }
-      }
+      )
+        .map {
+          (it.a + it.b)
+            .distinctBy { it.address }
+            .sortedBy { it.name }
+        }
+        .onStart { emit(emptyList()) }
     }
     .flowOn(this@IOContext)
     .share(SharingStarted.WhileSubscribed(2000), 1)
@@ -64,12 +66,15 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
     val soundbokses = mutableListOf<Soundboks>()
 
     fun handleSoundboks(soundboks: Soundboks) {
+      log { "handle soundboks $soundboks" }
       launch {
         soundboksLock.withLock {
           foundSoundbokses += soundboks
           if (soundbokses.any { it.address == soundboks.address })
             return@launch
         }
+
+        log { "attempt to connect to $soundboks" }
 
         withSoundboks<Unit>(soundboks.address) {
           onCancel(
