@@ -15,11 +15,13 @@ import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.logging.invoke
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.time.seconds
 import com.ivianuu.essentials.util.BroadcastsFactory
+import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
+import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
 import com.ivianuu.injekt.coroutines.IOContext
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
@@ -36,8 +38,14 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.*
 
-context(AppContext, BluetoothManager, BroadcastsFactory, IOContext, Logger, NamedCoroutineScope<AppScope>)
-@Provide @Scoped<AppScope> class SoundboksRemote {
+@Provide @Scoped<AppScope> class SoundboksRemote(
+  private val appContext: AppContext,
+  private val bluetoothManager: @SystemService BluetoothManager,
+  private val broadcastsFactory: BroadcastsFactory,
+  private val context: IOContext,
+  private val logger: Logger,
+  private val scope: NamedCoroutineScope<AppScope>
+) {
   private val servers = RefCountedResource<String, SoundboksServer>(
     timeout = 5.seconds,
     create = { SoundboksServer(it) },
@@ -48,10 +56,10 @@ context(AppContext, BluetoothManager, BroadcastsFactory, IOContext, Logger, Name
     .onStart<Any> { emit(Unit) }
     .map { address.isConnected() }
     .distinctUntilChanged()
-    .flowOn(this@IOContext)
+    .flowOn(context)
 
   private fun String.isConnected(): Boolean =
-    adapter.getRemoteDevice(this)
+    bluetoothManager.adapter.getRemoteDevice(this)
       ?.let {
         BluetoothDevice::class.java.getDeclaredMethod("isConnected").invoke(it) as Boolean
       } ?: false
@@ -59,7 +67,7 @@ context(AppContext, BluetoothManager, BroadcastsFactory, IOContext, Logger, Name
   suspend fun <R> withSoundboks(
     address: String,
     block: suspend context(SoundboksServer) () -> R
-  ): R? = withContext(this@IOContext) {
+  ): R? = withContext(context) {
     servers.withResource(address) {
       race(
         {
@@ -69,13 +77,13 @@ context(AppContext, BluetoothManager, BroadcastsFactory, IOContext, Logger, Name
         {
           it.serviceChanges.first()
           it.connectionState.first { !it }
-          log { "${it.device.debugName()} cancel with soundboks" }
+          logger { "${it.device.debugName()} cancel with soundboks" }
         }
       ) as? R
     }
   }
 
-  fun bondedDeviceChanges() = broadcasts(
+  fun bondedDeviceChanges() = broadcastsFactory(
     BluetoothAdapter.ACTION_STATE_CHANGED,
     BluetoothDevice.ACTION_BOND_STATE_CHANGED,
     BluetoothDevice.ACTION_ACL_CONNECTED,
@@ -83,9 +91,14 @@ context(AppContext, BluetoothManager, BroadcastsFactory, IOContext, Logger, Name
   )
 }
 
-context(AppContext, BluetoothManager, IOContext, Logger)
 @SuppressLint("MissingPermission")
-class SoundboksServer(address: String) {
+class SoundboksServer(
+  address: String,
+  @Inject private val appContext: AppContext,
+  @Inject private val bluetoothManager: @SystemService BluetoothManager,
+  @Inject private val context: IOContext,
+  @Inject private val logger: Logger
+) {
   val connectionState = MutableSharedFlow<Boolean>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
@@ -97,21 +110,21 @@ class SoundboksServer(address: String) {
     onBufferOverflow = BufferOverflow.SUSPEND
   )
 
-  val device = adapter.getRemoteDevice(address)
+  val device = bluetoothManager.adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
   private val sendLimiter = RateLimiter(1, 300.milliseconds)
 
-  private val gatt = adapter
+  private val gatt = bluetoothManager.adapter
     .getRemoteDevice(address)
     .connectGatt(
-      this@AppContext,
+      appContext,
       true,
       object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
           val isConnected = newState == BluetoothProfile.STATE_CONNECTED
-          log { "${device.debugName()} connection state changed $newState" }
+          logger { "${device.debugName()} connection state changed $newState" }
           connectionState.tryEmit(isConnected)
           if (isConnected)
             gatt.discoverServices()
@@ -119,7 +132,7 @@ class SoundboksServer(address: String) {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
           super.onServicesDiscovered(gatt, status)
-          log { "${device.debugName()} services discovered" }
+          logger { "${device.debugName()} services discovered" }
           serviceChanges.tryEmit(Unit)
         }
       },
@@ -127,14 +140,14 @@ class SoundboksServer(address: String) {
     )
 
   init {
-    log { "${device.debugName()} init" }
+    logger { "${device.debugName()} init" }
   }
 
   suspend fun send(
     serviceId: UUID,
     characteristicId: UUID,
     message: ByteArray
-  ) = withContext(this@IOContext) {
+  ) = withContext(context) {
     val service = gatt.getService(serviceId) ?: error(
       "${device.debugName()} service not found $serviceId $characteristicId ${
         gatt.services.map {
@@ -145,15 +158,15 @@ class SoundboksServer(address: String) {
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     sendLock.withLock {
-      log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+      logger { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
       characteristic.value = message
       sendLimiter.acquire()
       gatt.writeCharacteristic(characteristic)
     }
   }
 
-  suspend fun close() = withContext(this@IOContext) {
-    log { "${device.debugName()} close" }
+  suspend fun close() = withContext(context) {
+    logger { "${device.debugName()} close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
   }

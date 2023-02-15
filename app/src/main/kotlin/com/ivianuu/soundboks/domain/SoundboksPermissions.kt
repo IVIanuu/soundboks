@@ -34,7 +34,8 @@ val soundboksPermissionKeys = listOf(
 )
 
 // always request permissions when launching the ui
-context(PermissionManager)
-@Provide fun soundboksPermissionRequestWorker() = ScopeWorker<AppForegroundScope> {
-  requestPermissions(soundboksPermissionKeys)
+@Provide fun soundboksPermissionRequestWorker(
+  permissionManager: PermissionManager
+) = ScopeWorker<AppForegroundScope> {
+  permissionManager.requestPermissions(soundboksPermissionKeys)
 }

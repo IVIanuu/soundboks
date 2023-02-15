@@ -40,6 +40,7 @@ import com.ivianuu.essentials.compose.bind
 import com.ivianuu.essentials.compose.bindResource
 import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
 import com.ivianuu.essentials.coroutines.parForEach
+import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.common.UiRenderer
@@ -188,7 +189,7 @@ import kotlinx.coroutines.flow.flatMapLatest
   onSelectionChanged: (T) -> Unit,
   title: String,
   @Inject renderer: UiRenderer<T>
-) = with(renderer) {
+) {
   Column(
     modifier = Modifier
       .height(88.dp)
@@ -212,7 +213,7 @@ import kotlinx.coroutines.flow.flatMapLatest
           ),
           onClick = { onSelectionChanged(value) }
         ) {
-          Text(value.toUiString())
+          Text(renderer(value))
         }
       }
     }
@@ -267,14 +268,17 @@ data class HomeModel(
   val powerOff: () -> Unit
 )
 
-context(AppForegroundState.Provider, KeyUiContext<HomeKey>,
-SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
-@Provide fun homeModel() = Model {
-  val prefs = soundboksPref.data.bind(SoundboksPrefs())
+@Provide fun homeModel(
+  appForegroundState: Flow<AppForegroundState>,
+  pref: DataStore<SoundboksPrefs>,
+  repository: SoundboksRepository,
+  usecases: SoundboksUsecases
+) = Model {
+  val prefs = pref.data.bind(SoundboksPrefs())
 
   val soundbokses = appForegroundState
     .flatMapLatest {
-      if (it == AppForegroundState.FOREGROUND) soundbokses
+      if (it == AppForegroundState.FOREGROUND) repository.soundbokses
       else infiniteEmptyFlow()
     }
     .bindResource()
@@ -284,7 +288,7 @@ SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
     .merge()
 
   suspend fun updateConfig(block: SoundboksConfig.() -> SoundboksConfig) {
-    soundboksPref.updateData {
+    pref.updateData {
       copy(
         configs = buildMap {
           putAll(configs)
@@ -300,7 +304,7 @@ SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
     soundbokses = soundbokses,
     selectedSoundbokses = prefs.selectedSoundbokses,
     toggleSoundboksSelection = action { soundboks, longClick ->
-      soundboksPref.updateData {
+      pref.updateData {
         copy(
           selectedSoundbokses = if (!longClick) setOf(soundboks.address)
           else selectedSoundbokses.toMutableSet().apply {
@@ -311,7 +315,7 @@ SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
       }
     },
     toggleAllSoundboksSelections = action {
-      soundboksPref.updateData {
+      pref.updateData {
         val allSoundbokses =
           soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
         copy(
@@ -325,6 +329,6 @@ SoundboksPrefs.Context, SoundboksRepository, SoundboksUsecases)
     updateVolume = action { volume -> updateConfig { copy(volume = volume) } },
     updateChannel = action { value -> updateConfig { copy(channel = value) } },
     updateTeamUpMode = action { value -> updateConfig { copy(teamUpMode = value) } },
-    powerOff = action { prefs.selectedSoundbokses.parForEach { powerOff(it) } }
+    powerOff = action { prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) } }
   )
 }

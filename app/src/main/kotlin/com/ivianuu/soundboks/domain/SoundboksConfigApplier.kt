@@ -8,9 +8,11 @@ import com.ivianuu.essentials.compose.bind
 import com.ivianuu.essentials.compose.launchState
 import com.ivianuu.essentials.coroutines.ExitCase
 import com.ivianuu.essentials.coroutines.guarantee
+import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.logging.invoke
+import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
 import com.ivianuu.soundboks.data.SoundChannel
@@ -25,15 +27,20 @@ import kotlinx.coroutines.flow.map
 import java.util.*
 import kotlin.reflect.KMutableProperty0
 
-context(Logger, NamedCoroutineScope<AppForegroundScope>, SoundboksRemote, SoundboksPrefs.Context, SoundboksRepository)
-    @Provide fun soundboksConfigApplier() = ScopeWorker<AppForegroundScope> {
-  launchState({}) {
-    soundbokses.bind(emptyList()).forEach { soundboks ->
+@Provide fun soundboksConfigApplier(
+  logger: Logger,
+  scope: NamedCoroutineScope<AppForegroundScope>,
+  pref: DataStore<SoundboksPrefs>,
+  remote: SoundboksRemote,
+  repository: SoundboksRepository
+) = ScopeWorker<AppForegroundScope> {
+  scope.launchState(emitter = {}) {
+    repository.soundbokses.bind(emptyList()).forEach { soundboks ->
       key(soundboks) {
         LaunchedEffect(true) {
-          withSoundboks(soundboks.address) {
+          remote.withSoundboks(soundboks.address) {
             val cache = Cache()
-            soundboksPref.data
+            pref.data
               .map { it.configs[soundboks.address] ?: SoundboksConfig() }
               .distinctUntilChanged()
               .collectLatest { config ->
@@ -53,7 +60,11 @@ class Cache {
   var lastTeamUpMode: TeamUpMode? = null
 }
 
-context(Logger, SoundboksServer) suspend fun applyConfig(config: SoundboksConfig, cache: Cache) {
+suspend fun SoundboksServer.applyConfig(
+  config: SoundboksConfig,
+  cache: Cache,
+  @Inject logger: Logger
+) {
   suspend fun <T> sendIfChanged(
     tag: String,
     property: KMutableProperty0<T?>,
@@ -63,7 +74,7 @@ context(Logger, SoundboksServer) suspend fun applyConfig(config: SoundboksConfig
     message: ByteArray
   ) {
     if (property.get() != value) {
-      log { "${device.debugName()} apply $tag $value" }
+      logger { "${device.debugName()} apply $tag $value" }
       guarantee(
         block = {
           send(serviceId, characteristicId, message)
@@ -71,7 +82,7 @@ context(Logger, SoundboksServer) suspend fun applyConfig(config: SoundboksConfig
         },
         finalizer = {
           if (it !is ExitCase.Completed) {
-            log { "${device.debugName()} apply failed $it $tag $value" }
+            logger { "${device.debugName()} apply failed $it $tag $value" }
             property.set(null)
           }
         }

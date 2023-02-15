@@ -8,11 +8,11 @@ import android.bluetooth.le.ScanResult
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.coroutines.combine
 import com.ivianuu.essentials.coroutines.onCancel
-import com.ivianuu.essentials.coroutines.share
 import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.logging.invoke
 import com.ivianuu.essentials.permission.PermissionManager
 import com.ivianuu.injekt.Provide
+import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.Scoped
 import com.ivianuu.injekt.coroutines.IOContext
 import com.ivianuu.injekt.coroutines.NamedCoroutineScope
@@ -37,10 +37,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-context(BluetoothManager, IOContext, Logger,
-NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
-@Provide @Scoped<AppScope> class SoundboksRepository {
-  val soundbokses: Flow<List<Soundboks>> = permissionState(soundboksPermissionKeys)
+@Provide @Scoped<AppScope> class SoundboksRepository(
+  private val bluetoothManager: @SystemService BluetoothManager,
+  private val context: IOContext,
+  private val logger: Logger,
+  private val permissionManager: PermissionManager,
+  private val remote: SoundboksRemote,
+  private val scope: NamedCoroutineScope<AppScope>
+) {
+  val soundbokses: Flow<List<Soundboks>> = permissionManager.permissionState(soundboksPermissionKeys)
     .flatMapLatest {
       if (!it) flowOf(emptyList())
       else combine(
@@ -54,8 +59,8 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
         }
         .onStart { emit(emptyList()) }
     }
-    .flowOn(this@IOContext)
-    .share(SharingStarted.WhileSubscribed(2000), 1)
+    .flowOn(context)
+    .shareIn(scope, SharingStarted.WhileSubscribed(2000), 1)
     .distinctUntilChanged()
 
   private val foundSoundbokses = mutableSetOf<Soundboks>()
@@ -66,7 +71,7 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
     val soundbokses = mutableListOf<Soundboks>()
 
     fun handleSoundboks(soundboks: Soundboks) {
-      log { "handle soundboks $soundboks" }
+      logger { "handle soundboks $soundboks" }
       launch {
         soundboksLock.withLock {
           foundSoundbokses += soundboks
@@ -74,12 +79,12 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
             return@launch
         }
 
-        log { "attempt to connect to $soundboks" }
+        logger { "attempt to connect to $soundboks" }
 
-        withSoundboks<Unit>(soundboks.address) {
+        remote.withSoundboks<Unit>(soundboks.address) {
           onCancel(
             block = {
-              log { "${soundboks.debugName()} add soundboks" }
+              logger { "${soundboks.debugName()} add soundboks" }
               soundboksLock.withLock {
                 soundbokses += soundboks
                 trySend(soundbokses.toList())
@@ -89,7 +94,7 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
             },
             onCancel = {
               if (coroutineContext.isActive) {
-                log { "${soundboks.debugName()} remove soundboks" }
+                logger { "${soundboks.debugName()} remove soundboks" }
                 soundboksLock.withLock {
                   soundbokses.removeAll { it.address == soundboks.address }
                   trySend(soundbokses.toList())
@@ -101,7 +106,7 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
       }
     }
 
-    getConnectedDevices(BluetoothProfile.GATT)
+    bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
       .filter { it.isSoundboks() }
       .forEach { handleSoundboks(it.toSoundboks()) }
 
@@ -115,19 +120,19 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
       }
     }
 
-    log { "start scan" }
-    adapter.bluetoothLeScanner.startScan(callback)
+    logger { "start scan" }
+    bluetoothManager.adapter.bluetoothLeScanner.startScan(callback)
     awaitClose {
-      log { "stop scan" }
-      adapter.bluetoothLeScanner.stopScan(callback)
+      logger { "stop scan" }
+      bluetoothManager.adapter.bluetoothLeScanner.stopScan(callback)
     }
   }
 
   @SuppressLint("MissingPermission")
-  private fun bondedSoundbokses(): Flow<List<Soundboks>> = bondedDeviceChanges()
+  private fun bondedSoundbokses(): Flow<List<Soundboks>> = remote.bondedDeviceChanges()
     .onStart<Any> { emit(Unit) }
     .map {
-      adapter?.bondedDevices
+      bluetoothManager.adapter?.bondedDevices
         ?.filter { it.isSoundboks() }
         ?.map { it.toSoundboks() }
         ?: emptyList()
@@ -137,7 +142,7 @@ NamedCoroutineScope<AppScope>, PermissionManager, SoundboksRemote)
       else combine(
         soundbokses
           .map { soundboks ->
-            isConnected(soundboks.address)
+            remote.isConnected(soundboks.address)
               .map { soundboks to it }
           }
       )

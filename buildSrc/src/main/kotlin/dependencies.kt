@@ -6,7 +6,7 @@
 
 object Build {
   const val applicationId = "com.ivianuu.soundboks"
-  const val compileSdk = 32
+  const val compileSdk = 33
   const val minSdk = 32
   const val targetSdk = 31
   const val versionCode = 1
@@ -15,7 +15,7 @@ object Build {
 
 object Deps {
   object Essentials {
-    private const val version = "0.0.1-dev1153"
+    private const val version = "0.0.1-dev1161"
     const val android = "com.ivianuu.essentials:essentials-android:$version"
     const val gradlePlugin = "com.ivianuu.essentials:essentials-gradle-plugin:$version"
     const val permission = "com.ivianuu.essentials:essentials-permission:$version"
