@@ -13,7 +13,8 @@ import kotlinx.serialization.Serializable
 
 data class Soundboks(val address: String, val name: String)
 
-fun BluetoothDevice.toSoundboks() = Soundboks(address, alias ?: name)
+fun BluetoothDevice.toSoundboks() =
+  Soundboks(address, (alias ?: name).removePrefix("SOUNDBOKS "))
 
 fun BluetoothDevice.isSoundboks() = (alias ?: name).let {
   it?.startsWith("#", ignoreCase = true) == true ||
