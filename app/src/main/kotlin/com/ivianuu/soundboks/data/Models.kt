@@ -22,8 +22,10 @@ fun BluetoothDevice.isSoundboks() = (alias ?: name).let {
 }
 
 fun BluetoothDevice.debugName() = "[${alias ?: name} ~ $address]"
+  .removePrefix("SOUNDBOKS ")
 
 fun Soundboks.debugName() = "[$name ~ $address]"
+  .removePrefix("SOUNDBOKS ")
 
 @Serializable data class SoundboksPrefs(
   val configs: Map<String, SoundboksConfig> = emptyMap(),
