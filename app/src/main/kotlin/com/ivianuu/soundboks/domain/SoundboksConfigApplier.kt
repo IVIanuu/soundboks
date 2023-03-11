@@ -98,20 +98,14 @@ suspend fun SoundboksServer.applyConfig(
     cache.lastSoundProfile = null
     cache.lastChannel = null
     cache.lastTeamUpMode = null
+    cache.lastPin = config.pin
   }
 
-  if (config.pin != null) {
-    sendIfChanged(
-      tag = "pin",
-      property = cache::lastPin,
-      serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
-      characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
-      value = config.pin,
-      message = "aup${config.pin}".toByteArray()
-    )
-  } else {
-    cache.lastPin = null
-  }
+  send(
+    serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
+    characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
+    message = "aup${config.pin}".toByteArray()
+  )
 
   sendIfChanged(
     tag = "volume",
