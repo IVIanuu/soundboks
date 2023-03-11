@@ -46,6 +46,7 @@ import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.common.UiRenderer
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.ListKey
+import com.ivianuu.essentials.ui.dialog.TextInputKey
 import com.ivianuu.essentials.ui.layout.center
 import com.ivianuu.essentials.ui.material.Button
 import com.ivianuu.essentials.ui.material.ListItem
@@ -78,7 +79,7 @@ import com.ivianuu.soundboks.domain.SoundboksUsecases
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 
-@Provide object HomeKey : RootKey
+@Provide class HomeKey : RootKey
 
 @Provide val homeUi = ModelKeyUi<HomeKey, HomeModel> {
   Scaffold(
@@ -176,6 +177,13 @@ import kotlinx.coroutines.flow.flatMapLatest
                 title = "Team up mode"
               )
             }
+
+            item {
+              ListItem(
+                modifier = Modifier.clickable(onClick = updatePin),
+                title = { Text("Pin") }
+              )
+            }
           }
         }
       }
@@ -265,11 +273,13 @@ data class HomeModel(
   val updateChannel: (SoundChannel) -> Unit,
   val updateVolume: (Float) -> Unit,
   val updateTeamUpMode: (TeamUpMode) -> Unit,
+  val updatePin: () -> Unit,
   val powerOff: () -> Unit
 )
 
 @Provide fun homeModel(
   appForegroundState: Flow<AppForegroundState>,
+  ctx: KeyUiContext<HomeKey>,
   pref: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
   usecases: SoundboksUsecases
@@ -329,6 +339,10 @@ data class HomeModel(
     updateVolume = action { volume -> updateConfig { copy(volume = volume) } },
     updateChannel = action { value -> updateConfig { copy(channel = value) } },
     updateTeamUpMode = action { value -> updateConfig { copy(teamUpMode = value) } },
+    updatePin = action {
+      val pin = ctx.navigator.push(TextInputKey())?.toIntOrNull()
+      updateConfig { copy(pin = pin) }
+    },
     powerOff = action { prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) } }
   )
 }

@@ -54,6 +54,7 @@ import kotlin.reflect.KMutableProperty0
 }
 
 class Cache {
+  var lastPin: Int? = null
   var lastVolume: Float? = null
   var lastSoundProfile: SoundProfile? = null
   var lastChannel: SoundChannel? = null
@@ -88,6 +89,28 @@ suspend fun SoundboksServer.applyConfig(
         }
       )
     }
+  }
+
+  // reset everything on pin changes
+  if (config.pin != cache.lastPin) {
+    logger { "reset everything pin has changed ${config.pin}" }
+    cache.lastVolume = null
+    cache.lastSoundProfile = null
+    cache.lastChannel = null
+    cache.lastTeamUpMode = null
+  }
+
+  if (config.pin != null) {
+    sendIfChanged(
+      tag = "pin",
+      property = cache::lastPin,
+      serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
+      characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
+      value = config.pin,
+      message = "aup${config.pin}".toByteArray()
+    )
+  } else {
+    cache.lastPin = null
   }
 
   sendIfChanged(

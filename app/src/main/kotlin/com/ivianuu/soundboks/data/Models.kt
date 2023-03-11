@@ -40,7 +40,8 @@ fun Soundboks.debugName() = "[$name ~ $address]"
   val volume: Float = 0.5f,
   val soundProfile: SoundProfile = SoundProfile.POWER,
   val channel: SoundChannel = SoundChannel.MONO,
-  val teamUpMode: TeamUpMode = TeamUpMode.SOLO
+  val teamUpMode: TeamUpMode = TeamUpMode.SOLO,
+  val pin: Int? = null
 )
 
 fun List<SoundboksConfig>.merge(): SoundboksConfig = when {
