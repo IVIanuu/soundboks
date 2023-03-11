@@ -344,8 +344,8 @@ data class HomeModel(
     updatePin = action {
       val pin = ctx.navigator.push(
         TextInputKey(keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-      )?.toIntOrNull()
-      updateConfig { copy(pin = pin) }
+      )?.toIntOrNull() ?: return@action
+      updateConfig { copy(pin = if (pin.toString().length == 4) pin else null) }
     },
     powerOff = action { prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) } }
   )

@@ -51,7 +51,8 @@ fun List<SoundboksConfig>.merge(): SoundboksConfig = when {
     volume = map { it.volume }.average().toFloat(),
     soundProfile = if (map { it.soundProfile }.distinct().size == 1) first().soundProfile else SoundProfile.POWER,
     channel = if (map { it.channel }.distinct().size == 1) first().channel else SoundChannel.MONO,
-    teamUpMode = if (map { it.teamUpMode }.distinct().size == 1) first().teamUpMode else TeamUpMode.SOLO
+    teamUpMode = if (map { it.teamUpMode }.distinct().size == 1) first().teamUpMode else TeamUpMode.SOLO,
+    pin = if (map { it.pin }.distinct().size == 1) first().pin else null
   )
 }
 

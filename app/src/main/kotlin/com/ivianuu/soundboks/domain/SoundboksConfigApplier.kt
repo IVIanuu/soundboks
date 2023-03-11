@@ -66,6 +66,8 @@ suspend fun SoundboksServer.applyConfig(
   cache: Cache,
   @Inject logger: Logger
 ) {
+  logger { "${device.debugName()} apply config $config" }
+
   suspend fun <T> sendIfChanged(
     tag: String,
     property: KMutableProperty0<T?>,
@@ -88,6 +90,8 @@ suspend fun SoundboksServer.applyConfig(
           }
         }
       )
+    } else {
+      logger { "${device.debugName()} skip $tag $value" }
     }
   }
 
@@ -101,11 +105,18 @@ suspend fun SoundboksServer.applyConfig(
     cache.lastPin = config.pin
   }
 
-  send(
-    serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
-    characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
-    message = "aup${config.pin}".toByteArray()
-  )
+  if (config.pin != null) {
+    sendIfChanged(
+      tag = "pin",
+      property = cache::lastPin,
+      serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
+      characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
+      value = config.pin,
+      message = "aup${config.pin}".toByteArray()
+    )
+  } else {
+    cache.lastPin = null
+  }
 
   sendIfChanged(
     tag = "volume",
