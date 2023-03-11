@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.LocalContentColor
@@ -32,6 +33,7 @@ import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
 import com.ivianuu.essentials.app.AppForegroundState
@@ -340,7 +342,9 @@ data class HomeModel(
     updateChannel = action { value -> updateConfig { copy(channel = value) } },
     updateTeamUpMode = action { value -> updateConfig { copy(teamUpMode = value) } },
     updatePin = action {
-      val pin = ctx.navigator.push(TextInputKey())?.toIntOrNull()
+      val pin = ctx.navigator.push(
+        TextInputKey(keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+      )?.toIntOrNull()
       updateConfig { copy(pin = pin) }
     },
     powerOff = action { prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) } }
