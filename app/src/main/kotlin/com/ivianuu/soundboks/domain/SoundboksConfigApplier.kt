@@ -102,7 +102,6 @@ suspend fun SoundboksServer.applyConfig(
     cache.lastSoundProfile = null
     cache.lastChannel = null
     cache.lastTeamUpMode = null
-    cache.lastPin = config.pin
   }
 
   if (config.pin != null) {
