@@ -71,37 +71,26 @@ import kotlinx.coroutines.sync.withLock
     val soundbokses = mutableListOf<Soundboks>()
 
     fun handleSoundboks(soundboks: Soundboks) {
-      logger { "handle soundboks $soundboks" }
       launch {
         soundboksLock.withLock {
           foundSoundbokses += soundboks
           if (soundbokses.any { it.address == soundboks.address })
             return@launch
+          else {
+            logger { "${soundboks.debugName()} add soundboks" }
+            soundbokses += soundboks
+            trySend(soundbokses.toList())
+          }
         }
 
-        logger { "attempt to connect to $soundboks" }
-
         remote.withSoundboks<Unit>(soundboks.address) {
-          onCancel(
-            block = {
-              logger { "${soundboks.debugName()} add soundboks" }
-              soundboksLock.withLock {
-                soundbokses += soundboks
-                trySend(soundbokses.toList())
-              }
-
-              awaitCancellation()
-            },
-            onCancel = {
-              if (coroutineContext.isActive) {
-                logger { "${soundboks.debugName()} remove soundboks" }
-                soundboksLock.withLock {
-                  soundbokses.removeAll { it.address == soundboks.address }
-                  trySend(soundbokses.toList())
-                }
-              }
+          onCancel {
+            logger { "${soundboks.debugName()} remove soundboks" }
+            soundboksLock.withLock {
+              soundbokses.removeAll { it.address == soundboks.address }
+              trySend(soundbokses.toList())
             }
-          )
+          }
         }
       }
     }
