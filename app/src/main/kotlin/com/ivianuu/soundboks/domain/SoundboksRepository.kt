@@ -32,7 +32,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -70,21 +69,27 @@ import kotlinx.coroutines.sync.withLock
   private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow<List<Soundboks>> {
     val soundbokses = mutableListOf<Soundboks>()
 
-    fun handleSoundboks(soundboks: Soundboks) {
+    fun handleSoundboks(soundboks: Soundboks, isConnected: Boolean) {
       launch {
+        suspend fun add() {
+          logger { "${soundboks.debugName()} add soundboks" }
+          soundbokses += soundboks
+          trySend(soundbokses.toList())
+        }
+
         soundboksLock.withLock {
           foundSoundbokses += soundboks
           if (soundbokses.any { it.address == soundboks.address })
             return@launch
-          else {
-            logger { "${soundboks.debugName()} add soundboks" }
-            soundbokses += soundboks
-            trySend(soundbokses.toList())
-          }
+          else if (isConnected)
+            add()
         }
 
-        remote.withSoundboks<Unit>(soundboks.address) {
-          onCancel {
+        remote.withSoundboks(soundboks.address) {
+          onCancel(block = {
+            if (!isConnected) add()
+            awaitCancellation()
+          }) {
             logger { "${soundboks.debugName()} remove soundboks" }
             soundboksLock.withLock {
               soundbokses.removeAll { it.address == soundboks.address }
@@ -97,15 +102,15 @@ import kotlinx.coroutines.sync.withLock
 
     bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
       .filter { it.isSoundboks() }
-      .forEach { handleSoundboks(it.toSoundboks()) }
+      .forEach { handleSoundboks(it.toSoundboks(), true) }
 
-    foundSoundbokses.forEach { handleSoundboks(it) }
+    foundSoundbokses.forEach { handleSoundboks(it, false) }
 
     val callback = object : ScanCallback() {
       override fun onScanResult(callbackType: Int, result: ScanResult) {
         super.onScanResult(callbackType, result)
         if (result.device.isSoundboks())
-          handleSoundboks(result.device.toSoundboks())
+          handleSoundboks(result.device.toSoundboks(), true)
       }
     }
 
