@@ -69,14 +69,17 @@ import kotlinx.coroutines.sync.withLock
   @SuppressLint("MissingPermission")
   private fun bleSoundbokses(): Flow<List<Soundboks>> = callbackFlow<List<Soundboks>> {
     val soundbokses = mutableListOf<Soundboks>()
+    val handledSoundbokses = mutableListOf<Soundboks>()
 
     fun handleSoundboks(soundboks: Soundboks) {
       logger { "handle soundboks $soundboks" }
       launch {
         soundboksLock.withLock {
           foundSoundbokses += soundboks
-          if (soundbokses.any { it.address == soundboks.address })
+          if (handledSoundbokses.any { it.address == soundboks.address })
             return@launch
+
+          handledSoundbokses += soundboks
         }
 
         logger { "attempt to connect to $soundboks" }
@@ -96,6 +99,7 @@ import kotlinx.coroutines.sync.withLock
               if (coroutineContext.isActive) {
                 logger { "${soundboks.debugName()} remove soundboks" }
                 soundboksLock.withLock {
+                  handledSoundbokses.removeAll { it.address == soundboks.address }
                   soundbokses.removeAll { it.address == soundboks.address }
                   trySend(soundbokses.toList())
                 }
