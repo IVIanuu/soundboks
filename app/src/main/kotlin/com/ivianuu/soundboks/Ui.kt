@@ -2,7 +2,7 @@
  * Copyright 2022 Manuel Wrage. Use of this source code is governed by the Apache 2.0 license.
  */
 
-package com.ivianuu.soundboks.ui
+package com.ivianuu.soundboks
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,10 +27,10 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
@@ -45,9 +43,9 @@ import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.getOrNull
+import com.ivianuu.essentials.ui.AppColors
 import com.ivianuu.essentials.ui.common.UiRenderer
 import com.ivianuu.essentials.ui.common.VerticalList
-import com.ivianuu.essentials.ui.dialog.ListKey
 import com.ivianuu.essentials.ui.dialog.TextInputKey
 import com.ivianuu.essentials.ui.layout.center
 import com.ivianuu.essentials.ui.material.Button
@@ -69,17 +67,13 @@ import com.ivianuu.essentials.ui.prefs.SliderListItem
 import com.ivianuu.essentials.ui.resource.ResourceBox
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
-import com.ivianuu.soundboks.data.SoundChannel
-import com.ivianuu.soundboks.data.SoundProfile
-import com.ivianuu.soundboks.data.Soundboks
-import com.ivianuu.soundboks.data.SoundboksConfig
-import com.ivianuu.soundboks.data.SoundboksPrefs
-import com.ivianuu.soundboks.data.TeamUpMode
-import com.ivianuu.soundboks.data.merge
-import com.ivianuu.soundboks.domain.SoundboksRepository
-import com.ivianuu.soundboks.domain.SoundboksUsecases
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
+
+@Provide val appColors = AppColors(
+  primary = Color(0xFFF19066),
+  secondary = Color(0xFFE66767)
+)
 
 @Provide class HomeKey : RootKey
 

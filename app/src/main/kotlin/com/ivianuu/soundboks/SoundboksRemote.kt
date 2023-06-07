@@ -1,4 +1,4 @@
-package com.ivianuu.soundboks.domain
+package com.ivianuu.soundboks
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -15,17 +15,16 @@ import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.invoke
+import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.time.seconds
 import com.ivianuu.essentials.util.BroadcastsFactory
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
+import com.ivianuu.injekt.common.IOCoroutineContext
+import com.ivianuu.injekt.common.NamedCoroutineScope
 import com.ivianuu.injekt.common.Scoped
-import com.ivianuu.injekt.coroutines.IOContext
-import com.ivianuu.injekt.coroutines.NamedCoroutineScope
-import com.ivianuu.soundboks.data.debugName
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -42,7 +41,7 @@ import java.util.*
   private val appContext: AppContext,
   private val bluetoothManager: @SystemService BluetoothManager,
   private val broadcastsFactory: BroadcastsFactory,
-  private val context: IOContext,
+  private val coroutineContext: IOCoroutineContext,
   private val logger: Logger,
   private val scope: NamedCoroutineScope<AppScope>
 ) {
@@ -56,7 +55,7 @@ import java.util.*
     .onStart<Any> { emit(Unit) }
     .map { address.isConnected() }
     .distinctUntilChanged()
-    .flowOn(context)
+    .flowOn(coroutineContext)
 
   private fun String.isConnected(): Boolean =
     bluetoothManager.adapter.getRemoteDevice(this)
@@ -66,8 +65,8 @@ import java.util.*
 
   suspend fun <R> withSoundboks(
     address: String,
-    block: suspend context(SoundboksServer) () -> R
-  ): R? = withContext(context) {
+    block: suspend SoundboksServer.() -> R
+  ): R? = withContext(coroutineContext) {
     servers.withResource(address) {
       race(
         {
@@ -77,7 +76,7 @@ import java.util.*
         {
           it.serviceChanges.first()
           it.connectionState.first { !it }
-          logger { "${it.device.debugName()} cancel with soundboks" }
+          logger.log { "${it.device.debugName()} cancel with soundboks" }
         }
       ) as? R
     }
@@ -96,7 +95,7 @@ class SoundboksServer(
   address: String,
   @Inject private val appContext: AppContext,
   @Inject private val bluetoothManager: @SystemService BluetoothManager,
-  @Inject private val context: IOContext,
+  @Inject private val coroutineContext: IOCoroutineContext,
   @Inject private val logger: Logger
 ) {
   val connectionState = MutableSharedFlow<Boolean>(
@@ -124,7 +123,7 @@ class SoundboksServer(
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
           val isConnected = newState == BluetoothProfile.STATE_CONNECTED
-          logger { "${device.debugName()} connection state changed $newState" }
+          logger.log { "${device.debugName()} connection state changed $newState" }
           connectionState.tryEmit(isConnected)
           if (isConnected)
             gatt.discoverServices()
@@ -132,7 +131,7 @@ class SoundboksServer(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
           super.onServicesDiscovered(gatt, status)
-          logger { "${device.debugName()} services discovered" }
+          logger.log { "${device.debugName()} services discovered" }
           serviceChanges.tryEmit(Unit)
         }
       },
@@ -140,14 +139,14 @@ class SoundboksServer(
     )
 
   init {
-    logger { "${device.debugName()} init" }
+    logger.log { "${device.debugName()} init" }
   }
 
   suspend fun send(
     serviceId: UUID,
     characteristicId: UUID,
     message: ByteArray
-  ) = withContext(context) {
+  ) = withContext(coroutineContext) {
     val service = gatt.getService(serviceId) ?: error(
       "${device.debugName()} service not found $serviceId $characteristicId ${
         gatt.services.map {
@@ -158,15 +157,15 @@ class SoundboksServer(
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     sendLock.withLock {
-      logger { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+      logger.log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
       characteristic.value = message
       sendLimiter.acquire()
       gatt.writeCharacteristic(characteristic)
     }
   }
 
-  suspend fun close() = withContext(context) {
-    logger { "${device.debugName()} close" }
+  suspend fun close() = withContext(coroutineContext) {
+    logger.log { "${device.debugName()} close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
   }

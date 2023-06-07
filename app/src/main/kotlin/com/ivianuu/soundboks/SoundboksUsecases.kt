@@ -1,4 +1,4 @@
-package com.ivianuu.soundboks.domain
+package com.ivianuu.soundboks
 
 import com.ivianuu.injekt.Provide
 import java.util.*

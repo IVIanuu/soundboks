@@ -1,4 +1,4 @@
-package com.ivianuu.soundboks.domain
+package com.ivianuu.soundboks
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -11,16 +11,10 @@ import com.ivianuu.essentials.coroutines.guarantee
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.invoke
+import com.ivianuu.essentials.logging.log
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
-import com.ivianuu.injekt.coroutines.NamedCoroutineScope
-import com.ivianuu.soundboks.data.SoundChannel
-import com.ivianuu.soundboks.data.SoundProfile
-import com.ivianuu.soundboks.data.SoundboksConfig
-import com.ivianuu.soundboks.data.SoundboksPrefs
-import com.ivianuu.soundboks.data.TeamUpMode
-import com.ivianuu.soundboks.data.debugName
+import com.ivianuu.injekt.common.NamedCoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -66,7 +60,7 @@ suspend fun SoundboksServer.applyConfig(
   cache: Cache,
   @Inject logger: Logger
 ) {
-  logger { "${device.debugName()} apply config $config" }
+  logger.log { "${device.debugName()} apply config $config" }
 
   suspend fun <T> sendIfChanged(
     tag: String,
@@ -77,7 +71,7 @@ suspend fun SoundboksServer.applyConfig(
     message: ByteArray
   ) {
     if (property.get() != value) {
-      logger { "${device.debugName()} apply $tag $value" }
+      logger.log { "${device.debugName()} apply $tag $value" }
       guarantee(
         block = {
           send(serviceId, characteristicId, message)
@@ -85,19 +79,19 @@ suspend fun SoundboksServer.applyConfig(
         },
         finalizer = {
           if (it !is ExitCase.Completed) {
-            logger { "${device.debugName()} apply failed $it $tag $value" }
+            logger.log { "${device.debugName()} apply failed $it $tag $value" }
             property.set(null)
           }
         }
       )
     } else {
-      logger { "${device.debugName()} skip $tag $value" }
+      logger.log { "${device.debugName()} skip $tag $value" }
     }
   }
 
   // reset everything on pin changes
   if (config.pin != cache.lastPin) {
-    logger { "reset everything pin has changed ${config.pin}" }
+    logger.log { "reset everything pin has changed ${config.pin}" }
     cache.lastVolume = null
     cache.lastSoundProfile = null
     cache.lastChannel = null

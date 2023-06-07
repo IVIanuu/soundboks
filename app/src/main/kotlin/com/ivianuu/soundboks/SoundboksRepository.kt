@@ -1,4 +1,4 @@
-package com.ivianuu.soundboks.domain
+package com.ivianuu.soundboks
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
@@ -9,17 +9,13 @@ import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.coroutines.combine
 import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.invoke
+import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
+import com.ivianuu.injekt.common.IOCoroutineContext
+import com.ivianuu.injekt.common.NamedCoroutineScope
 import com.ivianuu.injekt.common.Scoped
-import com.ivianuu.injekt.coroutines.IOContext
-import com.ivianuu.injekt.coroutines.NamedCoroutineScope
-import com.ivianuu.soundboks.data.Soundboks
-import com.ivianuu.soundboks.data.debugName
-import com.ivianuu.soundboks.data.isSoundboks
-import com.ivianuu.soundboks.data.toSoundboks
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -39,7 +35,7 @@ import kotlinx.coroutines.sync.withLock
 
 @Provide @Scoped<AppScope> class SoundboksRepository(
   private val bluetoothManager: @SystemService BluetoothManager,
-  private val context: IOContext,
+  private val coroutineContext: IOCoroutineContext,
   private val logger: Logger,
   private val permissionManager: PermissionManager,
   private val remote: SoundboksRemote,
@@ -59,7 +55,7 @@ import kotlinx.coroutines.sync.withLock
         }
         .onStart { emit(emptyList()) }
     }
-    .flowOn(context)
+    .flowOn(coroutineContext)
     .shareIn(scope, SharingStarted.WhileSubscribed(2000), 1)
     .distinctUntilChanged()
 
@@ -72,7 +68,7 @@ import kotlinx.coroutines.sync.withLock
     val handledSoundbokses = mutableListOf<Soundboks>()
 
     fun handleSoundboks(soundboks: Soundboks) {
-      logger { "handle soundboks $soundboks" }
+      logger.log { "handle soundboks $soundboks" }
       launch {
         soundboksLock.withLock {
           foundSoundbokses += soundboks
@@ -82,12 +78,12 @@ import kotlinx.coroutines.sync.withLock
           handledSoundbokses += soundboks
         }
 
-        logger { "attempt to connect to $soundboks" }
+        logger.log { "attempt to connect to $soundboks" }
 
         remote.withSoundboks<Unit>(soundboks.address) {
           onCancel(
             block = {
-              logger { "${soundboks.debugName()} add soundboks" }
+              logger.log { "${soundboks.debugName()} add soundboks" }
               soundboksLock.withLock {
                 soundbokses += soundboks
                 trySend(soundbokses.toList())
@@ -97,7 +93,7 @@ import kotlinx.coroutines.sync.withLock
             },
             onCancel = {
               if (coroutineContext.isActive) {
-                logger { "${soundboks.debugName()} remove soundboks" }
+                logger.log { "${soundboks.debugName()} remove soundboks" }
                 soundboksLock.withLock {
                   handledSoundbokses.removeAll { it.address == soundboks.address }
                   soundbokses.removeAll { it.address == soundboks.address }
@@ -124,10 +120,10 @@ import kotlinx.coroutines.sync.withLock
       }
     }
 
-    logger { "start scan" }
+    logger.log { "start scan" }
     bluetoothManager.adapter.bluetoothLeScanner.startScan(callback)
     awaitClose {
-      logger { "stop scan" }
+      logger.log { "stop scan" }
       bluetoothManager.adapter.bluetoothLeScanner.stopScan(callback)
     }
   }
