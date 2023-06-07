@@ -70,7 +70,7 @@ import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 
-@Provide val appColors = AppColors(
+@Provide val soundboksAppColors = AppColors(
   primary = Color(0xFFF19066),
   secondary = Color(0xFFE66767)
 )
