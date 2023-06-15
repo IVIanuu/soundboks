@@ -46,7 +46,7 @@ import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.AppColors
 import com.ivianuu.essentials.ui.common.UiRenderer
 import com.ivianuu.essentials.ui.common.VerticalList
-import com.ivianuu.essentials.ui.dialog.TextInputKey
+import com.ivianuu.essentials.ui.dialog.TextInputScreen
 import com.ivianuu.essentials.ui.layout.center
 import com.ivianuu.essentials.ui.material.Button
 import com.ivianuu.essentials.ui.material.ListItem
@@ -55,10 +55,10 @@ import com.ivianuu.essentials.ui.material.TopAppBar
 import com.ivianuu.essentials.ui.material.esButtonColors
 import com.ivianuu.essentials.ui.material.guessingContentColorFor
 import com.ivianuu.essentials.ui.material.incrementingStepPolicy
-import com.ivianuu.essentials.ui.navigation.KeyUiContext
 import com.ivianuu.essentials.ui.navigation.Model
-import com.ivianuu.essentials.ui.navigation.ModelKeyUi
-import com.ivianuu.essentials.ui.navigation.RootKey
+import com.ivianuu.essentials.ui.navigation.Navigator
+import com.ivianuu.essentials.ui.navigation.RootScreen
+import com.ivianuu.essentials.ui.navigation.Ui
 import com.ivianuu.essentials.ui.navigation.push
 import com.ivianuu.essentials.ui.popup.PopupMenuButton
 import com.ivianuu.essentials.ui.popup.PopupMenuItem
@@ -75,22 +75,22 @@ import kotlinx.coroutines.flow.flatMapLatest
   secondary = Color(0xFFE66767)
 )
 
-@Provide class HomeKey : RootKey
+@Provide class HomeScreen : RootScreen
 
-@Provide val homeUi = ModelKeyUi<HomeKey, HomeModel> {
+@Provide val homeUi = Ui<HomeScreen, HomeModel> { model ->
   Scaffold(
     topBar = {
       TopAppBar(
         title = { Text("Soundboks") },
         actions = {
           PopupMenuButton {
-            PopupMenuItem(onSelected = powerOff) { Text("Power off") }
+            PopupMenuItem(onSelected = model.powerOff) { Text("Power off") }
           }
         }
       )
     }
   ) {
-    ResourceBox(soundbokses) { value ->
+    ResourceBox(model.soundbokses) { value ->
       VerticalList {
         if (value.isEmpty()) {
           item {
@@ -110,11 +110,11 @@ import kotlinx.coroutines.flow.flatMapLatest
               crossAxisSpacing = 8.dp
             ) {
               val allSoundbokses =
-                soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
+                model.soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
 
               Soundboks(
-                selected = allSoundbokses.all { it in selectedSoundbokses },
-                onClick = toggleAllSoundboksSelections,
+                selected = allSoundbokses.all { it in model.selectedSoundbokses },
+                onClick = model.toggleAllSoundboksSelections,
                 onLongClick = null
               ) {
                 Text("ALL")
@@ -122,9 +122,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 
               value.forEach { soundboks ->
                 Soundboks(
-                  selected = soundboks.address in selectedSoundbokses,
-                  onClick = { toggleSoundboksSelection(soundboks, false) },
-                  onLongClick = { toggleSoundboksSelection(soundboks, true) }
+                  selected = soundboks.address in model.selectedSoundbokses,
+                  onClick = { model.toggleSoundboksSelection(soundboks, false) },
+                  onLongClick = { model.toggleSoundboksSelection(soundboks, true) }
                 ) {
                   Text(soundboks.name)
                 }
@@ -132,15 +132,15 @@ import kotlinx.coroutines.flow.flatMapLatest
             }
           }
 
-          if (selectedSoundbokses.isEmpty()) {
+          if (model.selectedSoundbokses.isEmpty()) {
             item {
               Text("Select a soundboks to edit")
             }
           } else {
             item {
               SliderListItem(
-                value = config.volume,
-                onValueChangeFinished = updateVolume,
+                value = model.config.volume,
+                onValueChangeFinished = model.updateVolume,
                 stepPolicy = incrementingStepPolicy(0.05f),
                 title = { Text("Volume") },
                 valueText = { ScaledPercentageUnitText(it) }
@@ -149,34 +149,34 @@ import kotlinx.coroutines.flow.flatMapLatest
 
             item {
               ToggleButtonGroup(
-                selected = config.soundProfile,
+                selected = model.config.soundProfile,
                 values = SoundProfile.values().toList(),
-                onSelectionChanged = updateSoundProfile,
+                onSelectionChanged = model.updateSoundProfile,
                 title = "Sound profile"
               )
             }
 
             item {
               ToggleButtonGroup(
-                selected = config.channel,
+                selected = model.config.channel,
                 values = SoundChannel.values().toList(),
-                onSelectionChanged = updateChannel,
+                onSelectionChanged = model.updateChannel,
                 title = "Channel"
               )
             }
 
             item {
               ToggleButtonGroup(
-                selected = config.teamUpMode,
+                selected = model.config.teamUpMode,
                 values = TeamUpMode.values().toList(),
-                onSelectionChanged = updateTeamUpMode,
+                onSelectionChanged = model.updateTeamUpMode,
                 title = "Team up mode"
               )
             }
 
             item {
               ListItem(
-                modifier = Modifier.clickable(onClick = updatePin),
+                modifier = Modifier.clickable(onClick = model.updatePin),
                 title = { Text("Pin") }
               )
             }
@@ -275,7 +275,7 @@ data class HomeModel(
 
 @Provide fun homeModel(
   appForegroundState: Flow<AppForegroundState>,
-  ctx: KeyUiContext<HomeKey>,
+  navigator: Navigator,
   pref: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
   usecases: SoundboksUsecases
@@ -336,8 +336,8 @@ data class HomeModel(
     updateChannel = action { value -> updateConfig { copy(channel = value) } },
     updateTeamUpMode = action { value -> updateConfig { copy(teamUpMode = value) } },
     updatePin = action {
-      val pin = ctx.navigator.push(
-        TextInputKey(keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+      val pin = navigator.push(
+        TextInputScreen(keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
       )?.toIntOrNull() ?: return@action
       updateConfig { copy(pin = if (pin.toString().length == 4) pin else null) }
     },

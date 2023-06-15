@@ -6,7 +6,8 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import com.ivianuu.essentials.AppScope
-import com.ivianuu.essentials.coroutines.combine
+import com.ivianuu.essentials.Scoped
+import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
@@ -15,12 +16,12 @@ import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.IOCoroutineContext
 import com.ivianuu.injekt.common.NamedCoroutineScope
-import com.ivianuu.injekt.common.Scoped
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -39,7 +40,7 @@ import kotlinx.coroutines.sync.withLock
   private val logger: Logger,
   private val permissionManager: PermissionManager,
   private val remote: SoundboksRemote,
-  private val scope: NamedCoroutineScope<AppScope>
+  private val scope: ScopedCoroutineScope<AppScope>
 ) {
   val soundbokses: Flow<List<Soundboks>> = permissionManager.permissionState(soundboksPermissionKeys)
     .flatMapLatest {
@@ -47,12 +48,11 @@ import kotlinx.coroutines.sync.withLock
       else combine(
         bleSoundbokses(),
         bondedSoundbokses()
-      )
-        .map {
-          (it.a + it.b)
-            .distinctBy { it.address }
-            .sortedBy { it.name }
-        }
+      ) { a, b ->
+        (a + b)
+          .distinctBy { it.address }
+          .sortedBy { it.name }
+      }
         .onStart { emit(emptyList()) }
     }
     .flowOn(coroutineContext)
@@ -145,8 +145,7 @@ import kotlinx.coroutines.sync.withLock
             remote.isConnected(soundboks.address)
               .map { soundboks to it }
           }
-      )
-        .map {
+      ) {
           it
             .filter { it.second }
             .map { it.first }

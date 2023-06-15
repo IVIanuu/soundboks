@@ -5,8 +5,9 @@ import androidx.compose.runtime.key
 import com.ivianuu.essentials.app.AppForegroundScope
 import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.compose.bind
-import com.ivianuu.essentials.compose.launchState
+import com.ivianuu.essentials.compose.launchComposedEmitter
 import com.ivianuu.essentials.coroutines.ExitCase
+import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.guarantee
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
@@ -23,12 +24,12 @@ import kotlin.reflect.KMutableProperty0
 
 @Provide fun soundboksConfigApplier(
   logger: Logger,
-  scope: NamedCoroutineScope<AppForegroundScope>,
+  scope: ScopedCoroutineScope<AppForegroundScope>,
   pref: DataStore<SoundboksPrefs>,
   remote: SoundboksRemote,
   repository: SoundboksRepository
 ) = ScopeWorker<AppForegroundScope> {
-  scope.launchState(emitter = {}) {
+  scope.launchComposedEmitter(emitter = {}) {
     repository.soundbokses.bind(emptyList()).forEach { soundboks ->
       key(soundboks) {
         LaunchedEffect(true) {
