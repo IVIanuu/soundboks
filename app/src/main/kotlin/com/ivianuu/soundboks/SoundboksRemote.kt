@@ -25,7 +25,6 @@ import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.IOCoroutineContext
-import com.ivianuu.injekt.common.NamedCoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -33,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -46,9 +46,8 @@ import java.util.*
   private val logger: Logger,
   private val scope: ScopedCoroutineScope<AppScope>
 ) {
-  private val servers = RefCountedResource<String, SoundboksServer>(
-    timeout = 5.seconds,
-    create = { SoundboksServer(it) },
+  private val servers = RefCountedResource<Pair<String, Int?>, SoundboksServer>(
+    create = { SoundboksServer(it.first, it.second) },
     release = { _, server -> server.close() }
   )
 
@@ -66,18 +65,19 @@ import java.util.*
 
   suspend fun <R> withSoundboks(
     address: String,
+    pin: Int? = null,
     block: suspend SoundboksServer.() -> R
   ): R? = withContext(coroutineContext) {
-    servers.withResource(address) {
+    servers.withResource(address to pin) {
       race(
         {
-          it.serviceChanges.first()
+          it.ready.first()
           block(it)
         },
         {
-          it.serviceChanges.first()
+          it.ready.first()
           it.connectionState.first { !it }
-          logger.log { "${it.device.debugName()} cancel with soundboks" }
+          logger.log { "${it.device.debugName()} $pin cancel with soundboks" }
         }
       ) as? R
     }
@@ -94,17 +94,19 @@ import java.util.*
 @SuppressLint("MissingPermission")
 class SoundboksServer(
   address: String,
+  private val pin: Int? = null,
   @Inject private val appContext: AppContext,
   @Inject private val bluetoothManager: @SystemService BluetoothManager,
   @Inject private val coroutineContext: IOCoroutineContext,
-  @Inject private val logger: Logger
+  @Inject private val logger: Logger,
+  @Inject private val scope: ScopedCoroutineScope<AppScope>
 ) {
   val connectionState = MutableSharedFlow<Boolean>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
     onBufferOverflow = BufferOverflow.SUSPEND
   )
-  val serviceChanges = MutableSharedFlow<Unit>(
+  val ready = MutableSharedFlow<Unit>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
     onBufferOverflow = BufferOverflow.SUSPEND
@@ -115,7 +117,7 @@ class SoundboksServer(
   private val sendLock = Mutex()
   private val sendLimiter = RateLimiter(1, 300.milliseconds)
 
-  private val gatt = bluetoothManager.adapter
+  private val gatt: BluetoothGatt = bluetoothManager.adapter
     .getRemoteDevice(address)
     .connectGatt(
       appContext,
@@ -124,7 +126,7 @@ class SoundboksServer(
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
           val isConnected = newState == BluetoothProfile.STATE_CONNECTED
-          logger.log { "${device.debugName()} connection state changed $newState" }
+          logger.log { "${device.debugName()} $pin connection state changed $newState" }
           connectionState.tryEmit(isConnected)
           if (isConnected)
             gatt.discoverServices()
@@ -132,15 +134,26 @@ class SoundboksServer(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
           super.onServicesDiscovered(gatt, status)
-          logger.log { "${device.debugName()} services discovered" }
-          serviceChanges.tryEmit(Unit)
+          logger.log { "${device.debugName()} $pin services discovered" }
+          scope.launch {
+            if (pin != null) {
+              logger.log { "send pin $pin" }
+              send(
+                serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
+                characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
+                message = "aup${pin}".toByteArray()
+              )
+            }
+            logger.log { "${device.debugName()} $pin ready" }
+            ready.tryEmit(Unit)
+          }
         }
       },
       BluetoothDevice.TRANSPORT_LE
     )
 
   init {
-    logger.log { "${device.debugName()} init" }
+    logger.log { "${device.debugName()} $pin init" }
   }
 
   suspend fun send(
@@ -149,7 +162,7 @@ class SoundboksServer(
     message: ByteArray
   ) = withContext(coroutineContext) {
     val service = gatt.getService(serviceId) ?: error(
-      "${device.debugName()} service not found $serviceId $characteristicId ${
+      "${device.debugName()} $pin service not found $serviceId $characteristicId ${
         gatt.services.map {
           it.uuid
         }
@@ -158,7 +171,7 @@ class SoundboksServer(
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     sendLock.withLock {
-      logger.log { "${device.debugName()} send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
       characteristic.value = message
       sendLimiter.acquire()
       gatt.writeCharacteristic(characteristic)
@@ -166,7 +179,7 @@ class SoundboksServer(
   }
 
   suspend fun close() = withContext(coroutineContext) {
-    logger.log { "${device.debugName()} close" }
+    logger.log { "${device.debugName()} $pin close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
   }

@@ -27,6 +27,8 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,12 +38,11 @@ import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
 import com.ivianuu.essentials.app.AppForegroundState
 import com.ivianuu.essentials.compose.action
-import com.ivianuu.essentials.compose.bind
-import com.ivianuu.essentials.compose.bindResource
 import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
 import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.resource.Resource
+import com.ivianuu.essentials.resource.collectAsResourceState
 import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.AppColors
 import com.ivianuu.essentials.ui.common.UiRenderer
@@ -280,14 +281,16 @@ data class HomeModel(
   repository: SoundboksRepository,
   usecases: SoundboksUsecases
 ) = Model {
-  val prefs = pref.data.bind(SoundboksPrefs())
+  val prefs by pref.data.collectAsState(SoundboksPrefs())
 
-  val soundbokses = appForegroundState
-    .flatMapLatest {
-      if (it == AppForegroundState.FOREGROUND) repository.soundbokses
-      else infiniteEmptyFlow()
-    }
-    .bindResource()
+  val soundbokses by remember {
+    appForegroundState
+      .flatMapLatest {
+        if (it == AppForegroundState.FOREGROUND) repository.soundbokses
+        else infiniteEmptyFlow()
+      }
+  }
+    .collectAsResourceState()
 
   val config = prefs.selectedSoundbokses
     .map { prefs.configs[it] ?: SoundboksConfig() }
