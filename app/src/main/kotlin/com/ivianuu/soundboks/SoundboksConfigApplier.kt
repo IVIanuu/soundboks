@@ -34,7 +34,7 @@ import java.util.*
         }.collectAsState(null).value
 
         if (config != null) {
-          @Composable fun <T> SoundboksCharacteristicUpdater(
+          @Composable fun <T> SoundboksCharacteristic(
             tag: String,
             serviceId: UUID,
             characteristicId: UUID,
@@ -56,28 +56,28 @@ import java.util.*
             }
           }
 
-          SoundboksCharacteristicUpdater(
+          SoundboksCharacteristic(
             tag = "volume",
             serviceId = UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
             characteristicId = UUID.fromString("7649b19f-c605-46e2-98f8-6c1808e0cfb4"),
             value = config.volume
           ) { soundboksVolumeBytes(it) }
 
-          SoundboksCharacteristicUpdater(
+          SoundboksCharacteristic(
             tag = "sound profile",
             serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
             characteristicId = UUID.fromString("57a394fb-6d89-4105-8f07-bf730338a9b2"),
             value = config.soundProfile
           ) { it.bytes }
 
-          SoundboksCharacteristicUpdater(
+          SoundboksCharacteristic(
             tag = "channel",
             serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
             characteristicId = UUID.fromString("7d0d651e-62ae-4ef2-a727-0e8f3e9b4dfb"),
             value = config.channel
           ) { it.bytes }
 
-          SoundboksCharacteristicUpdater(
+          SoundboksCharacteristic(
             tag = "team up mode",
             serviceId = UUID.fromString("46c69d1b-7194-46f0-837c-ab7a6b94566f"),
             characteristicId = UUID.fromString("37bffa18-7f5a-4c8d-8a2d-362866cedfad"),
