@@ -54,16 +54,8 @@ fun List<SoundboksConfig>.merge(): SoundboksConfig = when {
   )
 }
 
-enum class SoundChannel(val bytes: ByteArray) {
-  LEFT(byteArrayOf(1)), MONO(byteArrayOf(0)), RIGHT(byteArrayOf(2))
-}
+enum class SoundChannel { LEFT, MONO, RIGHT }
 
-enum class SoundProfile(val bytes: ByteArray) {
-  BASS(byteArrayOf(1)), POWER(byteArrayOf(0)), INDOOR(byteArrayOf(2))
-}
+enum class SoundProfile { BASS, POWER, INDOOR }
 
-enum class TeamUpMode(val bytes: ByteArray) {
-  SOLO(byteArrayOf(115, 111, 108, 111)),
-  HOST(byteArrayOf(104, 111, 115, 116)),
-  JOIN(byteArrayOf(106, 111, 105, 110))
-}
+enum class TeamUpMode { SOLO, HOST, JOIN }

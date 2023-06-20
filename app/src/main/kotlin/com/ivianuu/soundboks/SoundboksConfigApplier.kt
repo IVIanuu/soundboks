@@ -49,35 +49,53 @@ import java.util.*
           serviceId = UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
           characteristicId = UUID.fromString("7649b19f-c605-46e2-98f8-6c1808e0cfb4"),
           value = config.volume
-        ) { soundboksVolumeBytes(it) }
+        ) {
+          byteArrayOf(
+            lerp(0, 255, it)
+              .let { if (it > 127) it - 256 else it }
+              .toByte()
+          )
+        }
 
         SoundboksCharacteristic(
           tag = "sound profile",
           serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
           characteristicId = UUID.fromString("57a394fb-6d89-4105-8f07-bf730338a9b2"),
           value = config.soundProfile
-        ) { it.bytes }
+        ) {
+          when (it) {
+            SoundProfile.BASS -> byteArrayOf(1)
+            SoundProfile.POWER -> byteArrayOf(0)
+            SoundProfile.INDOOR -> byteArrayOf(2)
+          }
+        }
 
         SoundboksCharacteristic(
           tag = "channel",
           serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
           characteristicId = UUID.fromString("7d0d651e-62ae-4ef2-a727-0e8f3e9b4dfb"),
           value = config.channel
-        ) { it.bytes }
+        ) {
+          when (it) {
+            SoundChannel.LEFT -> byteArrayOf(1)
+            SoundChannel.MONO -> byteArrayOf(0)
+            SoundChannel.RIGHT -> byteArrayOf(2)
+          }
+        }
 
         SoundboksCharacteristic(
           tag = "team up mode",
           serviceId = UUID.fromString("46c69d1b-7194-46f0-837c-ab7a6b94566f"),
           characteristicId = UUID.fromString("37bffa18-7f5a-4c8d-8a2d-362866cedfad"),
           value = config.teamUpMode
-        ) { it.bytes }
+        ) {
+          when (it) {
+            TeamUpMode.SOLO -> byteArrayOf(115, 111, 108, 111)
+            TeamUpMode.HOST -> byteArrayOf(104, 111, 115, 116)
+            TeamUpMode.JOIN -> byteArrayOf(106, 111, 105, 110)
+          }
+        }
       }
     }
   }
 }
-
-private fun soundboksVolumeBytes(volume: Float) = byteArrayOf(
-  lerp(0, 255, volume)
-    .let { if (it > 127) it - 256 else it }
-    .toByte()
-)
