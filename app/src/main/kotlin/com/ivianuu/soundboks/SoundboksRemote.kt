@@ -19,49 +19,31 @@ import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.time.milliseconds
-import com.ivianuu.essentials.time.seconds
-import com.ivianuu.essentials.util.BroadcastsFactory
+import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import com.ivianuu.injekt.common.IOCoroutineContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.*
 
-@Provide @Scoped<AppScope> class SoundboksRemote(
+@Provide @Scoped<UiScope> class SoundboksRemote(
   private val appContext: AppContext,
   private val bluetoothManager: @SystemService BluetoothManager,
-  private val broadcastsFactory: BroadcastsFactory,
   private val coroutineContext: IOCoroutineContext,
   private val logger: Logger,
-  private val scope: ScopedCoroutineScope<AppScope>
+  private val scope: ScopedCoroutineScope<UiScope>
 ) {
   private val servers = RefCountedResource<Pair<String, Int?>, SoundboksServer>(
     create = { SoundboksServer(it.first, it.second) },
     release = { _, server -> server.close() }
   )
-
-  fun isConnected(address: String) = bondedDeviceChanges()
-    .onStart<Any> { emit(Unit) }
-    .map { address.isConnected() }
-    .distinctUntilChanged()
-    .flowOn(coroutineContext)
-
-  private fun String.isConnected(): Boolean =
-    bluetoothManager.adapter.getRemoteDevice(this)
-      ?.let {
-        BluetoothDevice::class.java.getDeclaredMethod("isConnected").invoke(it) as Boolean
-      } ?: false
 
   suspend fun <R> withSoundboks(
     address: String,
@@ -82,13 +64,6 @@ import java.util.*
       ) as? R
     }
   }
-
-  fun bondedDeviceChanges() = broadcastsFactory(
-    BluetoothAdapter.ACTION_STATE_CHANGED,
-    BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-    BluetoothDevice.ACTION_ACL_CONNECTED,
-    BluetoothDevice.ACTION_ACL_DISCONNECTED
-  )
 }
 
 @SuppressLint("MissingPermission")
@@ -99,7 +74,7 @@ class SoundboksServer(
   @Inject private val bluetoothManager: @SystemService BluetoothManager,
   @Inject private val coroutineContext: IOCoroutineContext,
   @Inject private val logger: Logger,
-  @Inject private val scope: ScopedCoroutineScope<AppScope>
+  @Inject private val scope: ScopedCoroutineScope<UiScope>
 ) {
   val connectionState = MutableSharedFlow<Boolean>(
     replay = 1,
