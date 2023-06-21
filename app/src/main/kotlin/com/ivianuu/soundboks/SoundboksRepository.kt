@@ -60,7 +60,7 @@ import kotlinx.coroutines.sync.withLock
     }
 
     DisposableEffect(true) {
-      soundbokses += bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
+      soundbokses = soundbokses + bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
         .filter { it.isSoundboks() }
         .map { it.toSoundboks() }
 
