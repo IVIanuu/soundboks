@@ -5,7 +5,7 @@
 package com.ivianuu.soundboks
 
 import android.bluetooth.BluetoothDevice
-import com.ivianuu.essentials.android.prefs.PrefModule
+import com.ivianuu.essentials.data.PrefModule
 import com.ivianuu.injekt.Provide
 import kotlinx.serialization.Serializable
 

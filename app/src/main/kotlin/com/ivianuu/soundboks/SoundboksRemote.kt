@@ -10,7 +10,7 @@ import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.catch
+import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.RateLimiter
 import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
@@ -18,12 +18,12 @@ import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.result.catch
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
-import com.ivianuu.injekt.common.IOCoroutineContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -36,7 +36,7 @@ import java.util.*
 @Provide @Scoped<UiScope> class SoundboksRemote(
   private val appContext: AppContext,
   private val bluetoothManager: @SystemService BluetoothManager,
-  private val coroutineContext: IOCoroutineContext,
+  private val coroutineContexts: CoroutineContexts,
   private val logger: Logger,
   private val scope: ScopedCoroutineScope<UiScope>
 ) {
@@ -49,7 +49,7 @@ import java.util.*
     address: String,
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
-  ): R? = withContext(coroutineContext) {
+  ): R? = withContext(coroutineContexts.io) {
     servers.withResource(address to pin) {
       race(
         {
@@ -72,7 +72,7 @@ class SoundboksServer(
   private val pin: Int? = null,
   @Inject private val appContext: AppContext,
   @Inject private val bluetoothManager: @SystemService BluetoothManager,
-  @Inject private val coroutineContext: IOCoroutineContext,
+  @Inject private val coroutineContexts: CoroutineContexts,
   @Inject private val logger: Logger,
   @Inject private val scope: ScopedCoroutineScope<UiScope>
 ) {
@@ -135,7 +135,7 @@ class SoundboksServer(
     serviceId: UUID,
     characteristicId: UUID,
     message: ByteArray
-  ) = withContext(coroutineContext) {
+  ) = withContext(coroutineContexts.io) {
     val service = gatt.getService(serviceId) ?: error(
       "${device.debugName()} $pin service not found $serviceId $characteristicId ${
         gatt.services.map {
@@ -153,7 +153,7 @@ class SoundboksServer(
     }
   }
 
-  suspend fun close() = withContext(coroutineContext) {
+  suspend fun close() = withContext(coroutineContexts.io) {
     logger.log { "${device.debugName()} $pin close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
