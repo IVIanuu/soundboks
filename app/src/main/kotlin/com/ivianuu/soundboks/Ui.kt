@@ -105,8 +105,7 @@ import kotlinx.coroutines.flow.flatMapLatest
         } else {
           item {
             FlowRow(
-              modifier = Modifier
-                .padding(8.dp),
+              modifier = Modifier.padding(8.dp),
               mainAxisSpacing = 8.dp,
               crossAxisSpacing = 8.dp
             ) {
