@@ -4,6 +4,7 @@
 
 package com.ivianuu.soundboks
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
@@ -210,10 +211,14 @@ import kotlinx.coroutines.flow.flatMapLatest
       horizontalArrangement = Arrangement.SpaceEvenly
     ) {
       values.forEach { value ->
+        val targetBackgroundColor = if (value == selected) MaterialTheme.colors.secondary
+        else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
+        val backgroundColor by animateColorAsState(targetBackgroundColor)
+        val contentColor by animateColorAsState(guessingContentColorFor(targetBackgroundColor))
         Button(
           colors = ButtonDefaults.esButtonColors(
-            backgroundColor = if (value == selected) MaterialTheme.colors.secondary
-            else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
+            backgroundColor = backgroundColor,
+            contentColor = contentColor
           ),
           onClick = { onSelectionChanged(value) }
         ) {
@@ -231,14 +236,16 @@ import kotlinx.coroutines.flow.flatMapLatest
   onLongClick: (() -> Unit)?,
   content: @Composable () -> Unit
 ) {
-  val backgroundColor = if (selected) MaterialTheme.colors.secondary
+  val targetBackgroundColor = if (selected) MaterialTheme.colors.secondary
   else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
+  val backgroundColor by animateColorAsState(targetBackgroundColor)
+  val contentColor by animateColorAsState(guessingContentColorFor(targetBackgroundColor))
   Surface(
     modifier = Modifier
       .height(32.dp),
     shape = RoundedCornerShape(50),
     color = backgroundColor,
-    contentColor = guessingContentColorFor(backgroundColor)
+    contentColor = contentColor
   ) {
     Box(
       modifier = Modifier
