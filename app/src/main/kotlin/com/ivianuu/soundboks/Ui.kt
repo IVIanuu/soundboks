@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -70,7 +71,9 @@ import com.ivianuu.essentials.ui.resource.ResourceBox
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 
 @Provide val soundboksAppColors = AppColors(
   primary = Color(0xFFF19066),
@@ -113,8 +116,9 @@ import kotlinx.coroutines.flow.flatMapLatest
               val allSoundbokses =
                 model.soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
 
-              Soundboks(
+              SoundboksChip(
                 selected = allSoundbokses.all { it in model.selectedSoundbokses },
+                active = allSoundbokses.all { it in model.connectedSoundbokses },
                 onClick = model.toggleAllSoundboksSelections,
                 onLongClick = null
               ) {
@@ -122,8 +126,9 @@ import kotlinx.coroutines.flow.flatMapLatest
               }
 
               value.forEach { soundboks ->
-                Soundboks(
+                SoundboksChip(
                   selected = soundboks.address in model.selectedSoundbokses,
+                  active = soundboks.address in model.connectedSoundbokses,
                   onClick = { model.toggleSoundboksSelection(soundboks, false) },
                   onLongClick = { model.toggleSoundboksSelection(soundboks, true) }
                 ) {
@@ -230,8 +235,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 }
 
 @OptIn(ExperimentalFoundationApi::class)
-@Composable private fun Soundboks(
+@Composable private fun SoundboksChip(
   selected: Boolean,
+  active: Boolean,
   onClick: () -> Unit,
   onLongClick: (() -> Unit)?,
   content: @Composable () -> Unit
@@ -242,7 +248,8 @@ import kotlinx.coroutines.flow.flatMapLatest
   val contentColor by animateColorAsState(guessingContentColorFor(targetBackgroundColor))
   Surface(
     modifier = Modifier
-      .height(32.dp),
+      .height(32.dp)
+      .alpha(if (active) 1f else ContentAlpha.disabled),
     shape = RoundedCornerShape(50),
     color = backgroundColor,
     contentColor = contentColor
@@ -269,6 +276,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 data class HomeModel(
   val soundbokses: Resource<List<Soundboks>>,
   val selectedSoundbokses: Set<String>,
+  val connectedSoundbokses: Set<String>,
   val toggleSoundboksSelection: (Soundboks, Boolean) -> Unit,
   val toggleAllSoundboksSelections: () -> Unit,
   val config: SoundboksConfig,
@@ -285,6 +293,7 @@ data class HomeModel(
   navigator: Navigator,
   pref: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
+  remote: SoundboksRemote,
   usecases: SoundboksUsecases
 ) = Model {
   val prefs by pref.data.collectAsState(SoundboksPrefs())
@@ -295,8 +304,7 @@ data class HomeModel(
         if (it == AppForegroundState.FOREGROUND) repository.soundbokses
         else infiniteEmptyFlow()
       }
-  }
-    .collectAsResourceState()
+  }.collectAsResourceState()
 
   val config = prefs.selectedSoundbokses
     .map { prefs.configs[it] ?: SoundboksConfig() }
@@ -318,6 +326,23 @@ data class HomeModel(
   HomeModel(
     soundbokses = soundbokses,
     selectedSoundbokses = prefs.selectedSoundbokses,
+    connectedSoundbokses = remember {
+      combine(repository.soundbokses, pref.data) { a, b -> a to b }
+        .flatMapLatest { (soundbokses, prefs) ->
+          combine(
+            soundbokses
+              .map { soundboks ->
+                remote.withSoundboks(soundboks.address, prefs.configs[soundboks.address]?.pin) {
+                  isConnected
+                    .map { soundboks.address to it }
+                }!!
+              }
+          ) {
+            it.filter { it.second }
+              .mapTo(mutableSetOf()) { it.first }
+          }
+        }
+    }.collectAsState(emptySet()).value,
     toggleSoundboksSelection = action { soundboks, longClick ->
       pref.updateData {
         copy(
