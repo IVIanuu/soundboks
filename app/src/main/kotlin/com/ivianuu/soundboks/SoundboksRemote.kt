@@ -99,7 +99,6 @@ import java.util.*
           logger.log { "${device.debugName()} $pin services discovered" }
           scope.launch {
             if (pin != null) {
-              delay(100.milliseconds)
               logger.log { "send pin $pin" }
               send(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
@@ -107,8 +106,6 @@ import java.util.*
                 message = "aup${pin}".toByteArray()
               )
             }
-
-            delay(100.milliseconds)
 
             logger.log { "${device.debugName()} $pin ready" }
             isConnected.tryEmit(true)
