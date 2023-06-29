@@ -19,6 +19,7 @@ import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.result.catch
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.ui.UiScope
+import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
@@ -46,17 +47,14 @@ import java.util.*
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
   ): R? = servers.withResource(address to pin) {
+    it.isConnected.first()
     race(
+      { block(it) },
       {
-        it.isConnected.first()
-        block(it)
-      },
-      {
-        it.isConnected.first { it }
         it.isConnected.first { !it }
         logger.log { "${it.device.debugName()} $pin cancel with soundboks" }
       }
-    ) as? R
+    ).unsafeCast()
   }
 }
 
