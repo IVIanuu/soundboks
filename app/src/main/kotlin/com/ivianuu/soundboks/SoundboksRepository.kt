@@ -21,6 +21,8 @@ import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.compose.compositionStateFlow
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.onCancel
+import com.ivianuu.essentials.data.DataStore
+import com.ivianuu.essentials.data.DataStoreModule
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
@@ -31,6 +33,11 @@ import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -39,6 +46,7 @@ import kotlinx.coroutines.sync.withLock
   private val bluetoothManager: @SystemService BluetoothManager,
   private val logger: Logger,
   permissionManager: PermissionManager,
+  private val pref: DataStore<SoundboksPrefs>,
   private val remote: SoundboksRemote,
   scope: ScopedCoroutineScope<UiScope>
 ) {
@@ -52,9 +60,17 @@ import kotlinx.coroutines.sync.withLock
     soundbokses.forEach { soundboks ->
       key(soundboks.address) {
         LaunchedEffect(true) {
-          remote.withSoundboks<Unit>(soundboks.address) {
-            onCancel { soundbokses = soundbokses - soundboks }
-          }
+          pref.data
+            .map { it.configs[soundboks.address]?.pin }
+            .distinctUntilChanged()
+            .collectLatest { pin ->
+              remote.withSoundboks<Unit>(soundboks.address, pin) {
+                onCancel {
+                  if (!isConnected.first())
+                    soundbokses = soundbokses - soundboks
+                }
+              }
+            }
         }
       }
     }

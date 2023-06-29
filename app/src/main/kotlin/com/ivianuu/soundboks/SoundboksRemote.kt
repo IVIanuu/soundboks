@@ -1,14 +1,12 @@
 package com.ivianuu.soundboks
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
-import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.RateLimiter
@@ -25,6 +23,7 @@ import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -34,14 +33,11 @@ import kotlinx.coroutines.withContext
 import java.util.*
 
 @Provide @Scoped<UiScope> class SoundboksRemote(
-  private val appContext: AppContext,
-  private val bluetoothManager: @SystemService BluetoothManager,
-  private val coroutineContexts: CoroutineContexts,
   private val logger: Logger,
-  private val scope: ScopedCoroutineScope<UiScope>
+  private val serverFactory: (String, Int?) -> SoundboksServer
 ) {
   private val servers = RefCountedResource<Pair<String, Int?>, SoundboksServer>(
-    create = { SoundboksServer(it.first, it.second) },
+    create = { serverFactory(it.first, it.second) },
     release = { _, server -> server.close() }
   )
 
@@ -49,39 +45,32 @@ import java.util.*
     address: String,
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
-  ): R? = withContext(coroutineContexts.io) {
-    servers.withResource(address to pin) {
-      race(
-        {
-          it.ready.first()
-          block(it)
-        },
-        {
-          it.ready.first()
-          it.connectionState.first { !it }
-          logger.log { "${it.device.debugName()} $pin cancel with soundboks" }
-        }
-      ) as? R
-    }
+  ): R? = servers.withResource(address to pin) {
+    race(
+      {
+        it.isConnected.first()
+        block(it)
+      },
+      {
+        it.isConnected.first { it }
+        it.isConnected.first { !it }
+        logger.log { "${it.device.debugName()} $pin cancel with soundboks" }
+      }
+    ) as? R
   }
 }
 
 @SuppressLint("MissingPermission")
-class SoundboksServer(
+@Provide class SoundboksServer(
   address: String,
   private val pin: Int? = null,
-  @Inject private val appContext: AppContext,
-  @Inject private val bluetoothManager: @SystemService BluetoothManager,
-  @Inject private val coroutineContexts: CoroutineContexts,
-  @Inject private val logger: Logger,
-  @Inject private val scope: ScopedCoroutineScope<UiScope>
+  appContext: AppContext,
+  bluetoothManager: @SystemService BluetoothManager,
+  private val coroutineContexts: CoroutineContexts,
+  private val logger: Logger,
+  private val scope: ScopedCoroutineScope<UiScope>
 ) {
-  val connectionState = MutableSharedFlow<Boolean>(
-    replay = 1,
-    extraBufferCapacity = Int.MAX_VALUE,
-    onBufferOverflow = BufferOverflow.SUSPEND
-  )
-  val ready = MutableSharedFlow<Unit>(
+  val isConnected = MutableSharedFlow<Boolean>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
     onBufferOverflow = BufferOverflow.SUSPEND
@@ -101,10 +90,11 @@ class SoundboksServer(
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
           val isConnected = newState == BluetoothProfile.STATE_CONNECTED
-          logger.log { "${device.debugName()} $pin connection state changed $newState" }
-          connectionState.tryEmit(isConnected)
+          logger.log { "${device.debugName()} $pin connection state changed $isConnected $newState" }
           if (isConnected)
             gatt.discoverServices()
+          else
+            this@SoundboksServer.isConnected.tryEmit(false)
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -112,6 +102,7 @@ class SoundboksServer(
           logger.log { "${device.debugName()} $pin services discovered" }
           scope.launch {
             if (pin != null) {
+              sendLimiter.acquire()
               logger.log { "send pin $pin" }
               send(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
@@ -119,8 +110,11 @@ class SoundboksServer(
                 message = "aup${pin}".toByteArray()
               )
             }
+
+            sendLimiter.acquire()
+
             logger.log { "${device.debugName()} $pin ready" }
-            ready.tryEmit(Unit)
+            isConnected.tryEmit(true)
           }
         }
       },
