@@ -77,7 +77,7 @@ import java.util.*
   val device = bluetoothManager.adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 100.milliseconds)
+  private val sendLimiter = RateLimiter(1, 300.milliseconds)
 
   private val gatt: BluetoothGatt = bluetoothManager.adapter
     .getRemoteDevice(address)
