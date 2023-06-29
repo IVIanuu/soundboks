@@ -77,7 +77,6 @@ import java.util.*
   val device = bluetoothManager.adapter.getRemoteDevice(address)
 
   private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 300.milliseconds)
 
   private val gatt: BluetoothGatt = bluetoothManager.adapter
     .getRemoteDevice(address)
@@ -100,7 +99,7 @@ import java.util.*
           logger.log { "${device.debugName()} $pin services discovered" }
           scope.launch {
             if (pin != null) {
-              sendLimiter.acquire()
+              delay(100.milliseconds)
               logger.log { "send pin $pin" }
               send(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
@@ -109,7 +108,7 @@ import java.util.*
               )
             }
 
-            sendLimiter.acquire()
+            delay(100.milliseconds)
 
             logger.log { "${device.debugName()} $pin ready" }
             isConnected.tryEmit(true)
@@ -140,7 +139,6 @@ import java.util.*
     sendLock.withLock {
       logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
       characteristic.value = message
-      sendLimiter.acquire()
       gatt.writeCharacteristic(characteristic)
     }
   }
