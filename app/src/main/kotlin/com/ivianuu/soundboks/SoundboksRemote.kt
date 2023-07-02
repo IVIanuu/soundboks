@@ -47,7 +47,7 @@ import java.util.*
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
   ): R? = servers.withResource(address to pin) {
-    it.isConnected.first()
+    it.isConnected.first { it }
     race(
       { block(it) },
       {
