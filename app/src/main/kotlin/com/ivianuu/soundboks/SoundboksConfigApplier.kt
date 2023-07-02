@@ -39,7 +39,7 @@ import java.util.*
           LaunchedEffect(config.pin, value) {
             remote.withSoundboks<Unit>(soundboks.address, config.pin) {
               logger.log { "${device.debugName()} apply $tag $value" }
-              send(serviceId, characteristicId, toByteArray(value))
+              updateCharacteristic(serviceId, characteristicId, toByteArray(value))
             }
           }
         }

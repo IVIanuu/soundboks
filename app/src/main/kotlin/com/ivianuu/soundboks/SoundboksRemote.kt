@@ -20,11 +20,9 @@ import com.ivianuu.essentials.result.catch
 import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.essentials.unsafeCast
-import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -102,7 +100,7 @@ import java.util.*
             if (pin != null) {
               sendLimiter.acquire()
               logger.log { "send pin $pin" }
-              send(
+              updateCharacteristic(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
                 characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
                 message = "aup${pin}".toByteArray()
@@ -123,7 +121,7 @@ import java.util.*
     logger.log { "${device.debugName()} $pin init" }
   }
 
-  suspend fun send(
+  suspend fun updateCharacteristic(
     serviceId: UUID,
     characteristicId: UUID,
     message: ByteArray
