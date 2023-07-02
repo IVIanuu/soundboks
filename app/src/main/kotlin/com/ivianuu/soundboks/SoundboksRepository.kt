@@ -33,6 +33,7 @@ import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -51,7 +52,7 @@ import kotlinx.coroutines.sync.withLock
   scope: ScopedCoroutineScope<UiScope>
 ) {
   @SuppressLint("MissingPermission")
-  val soundbokses: Flow<List<Soundboks>> = scope.compositionStateFlow {
+  val soundbokses: StateFlow<List<Soundboks>> = scope.compositionStateFlow {
     if (!permissionManager.permissionState(soundboksPermissionKeys).collectAsState(false).value)
       return@compositionStateFlow emptyList()
 
