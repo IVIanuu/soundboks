@@ -30,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +47,7 @@ import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.collectAsResourceState
+import com.ivianuu.essentials.resource.getOrElse
 import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.AppColors
 import com.ivianuu.essentials.ui.common.UiRenderer
@@ -293,8 +296,7 @@ data class HomeModel(
   navigator: Navigator,
   pref: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
-  remote: SoundboksRemote,
-  usecases: SoundboksUsecases
+  remote: SoundboksRemote
 ) = Model {
   val prefs by pref.data.collectAsState(SoundboksPrefs())
 
@@ -323,26 +325,24 @@ data class HomeModel(
     }
   }
 
+  val connectedSoundbokses = soundbokses
+    .getOrElse { emptyList() }
+    .mapNotNullTo(mutableSetOf()) { soundboks ->
+      key(soundboks) {
+        val isConnected by produceState(false) {
+          remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
+            isConnected.collect { value = it }
+          }
+        }
+
+        if (isConnected) soundboks.address else null
+      }
+    }
+
   HomeModel(
     soundbokses = soundbokses,
     selectedSoundbokses = prefs.selectedSoundbokses,
-    connectedSoundbokses = remember {
-      combine(repository.soundbokses, pref.data) { a, b -> a to b }
-        .flatMapLatest { (soundbokses, prefs) ->
-          combine(
-            soundbokses
-              .map { soundboks ->
-                remote.withSoundboks(soundboks.address, prefs.configs[soundboks.address]?.pin) {
-                  isConnected
-                    .map { soundboks.address to it }
-                }!!
-              }
-          ) {
-            it.filter { it.second }
-              .mapTo(mutableSetOf()) { it.first }
-          }
-        }
-    }.collectAsState(emptySet()).value,
+    connectedSoundbokses = connectedSoundbokses,
     toggleSoundboksSelection = action { soundboks, longClick ->
       pref.updateData {
         copy(
@@ -375,6 +375,6 @@ data class HomeModel(
       )?.toIntOrNull() ?: return@action
       updateConfig { copy(pin = if (pin.toString().length == 4) pin else null) }
     },
-    powerOff = action { prefs.selectedSoundbokses.parForEach { usecases.powerOff(it) } }
+    powerOff = action { prefs.selectedSoundbokses.parForEach { remote.powerOff(it) } }
   )
 }
