@@ -143,10 +143,10 @@ import java.util.*
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     writeLock.withLock {
       logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+      characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
       characteristic.value = message
       gatt.writeCharacteristic(characteristic)
-      val result = writeResults.first { it.first == characteristic }.second
-      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()} result $result" }
+      writeResults.first { it.first == characteristic }
     }
   }
 
