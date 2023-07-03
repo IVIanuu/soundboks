@@ -21,7 +21,7 @@ import java.util.*
   remote: SoundboksRemote,
   repository: SoundboksRepository
 ) = ScopeComposition<AppForegroundScope> {
-  repository.soundbokses.collectAsState(emptyList()).value.forEach { soundboks ->
+  repository.soundbokses.collectAsState(null).value?.forEach { soundboks ->
     key(soundboks) {
       val config = remember {
         pref.data
