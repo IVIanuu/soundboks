@@ -22,6 +22,7 @@ import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -142,10 +143,12 @@ import java.util.*
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
     writeLock.withLock {
-      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
-      characteristic.value = message
-      gatt.writeCharacteristic(characteristic)
-      writeResults.first { it.first == characteristic }
+      withContext(NonCancellable) {
+        logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
+        characteristic.value = message
+        gatt.writeCharacteristic(characteristic)
+        writeResults.first { it.first == characteristic }
+      }
     }
   }
 
