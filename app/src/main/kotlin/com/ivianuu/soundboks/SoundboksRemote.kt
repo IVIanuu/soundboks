@@ -4,12 +4,13 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.coroutines.CoroutineContexts
-import com.ivianuu.essentials.coroutines.RateLimiter
+import com.ivianuu.essentials.coroutines.EventFlow
 import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.race
@@ -17,7 +18,6 @@ import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.result.catch
-import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
@@ -74,8 +74,8 @@ import java.util.*
 
   val device = bluetoothManager.adapter.getRemoteDevice(address)
 
-  private val sendLock = Mutex()
-  private val sendLimiter = RateLimiter(1, 300.milliseconds)
+  private val writeLock = Mutex()
+  private val writeResults = EventFlow<Pair<BluetoothGattCharacteristic, Int>>()
 
   private val gatt: BluetoothGatt = bluetoothManager.adapter
     .getRemoteDevice(address)
@@ -98,7 +98,6 @@ import java.util.*
           logger.log { "${device.debugName()} $pin services discovered" }
           scope.launch {
             if (pin != null) {
-              sendLimiter.acquire()
               logger.log { "send pin $pin" }
               updateCharacteristic(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
@@ -107,11 +106,18 @@ import java.util.*
               )
             }
 
-            sendLimiter.acquire()
-
             logger.log { "${device.debugName()} $pin ready" }
-            isConnected.tryEmit(true)
+            isConnected.emit(true)
           }
+        }
+
+        override fun onCharacteristicWrite(
+          gatt: BluetoothGatt,
+          characteristic: BluetoothGattCharacteristic,
+          status: Int
+        ) {
+          super.onCharacteristicWrite(gatt, characteristic, status)
+          writeResults.tryEmit(characteristic to status)
         }
       },
       BluetoothDevice.TRANSPORT_LE
@@ -135,11 +141,12 @@ import java.util.*
     )
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
-    sendLock.withLock {
+    writeLock.withLock {
       logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
-      sendLimiter.acquire()
       characteristic.value = message
       gatt.writeCharacteristic(characteristic)
+      val result = writeResults.first { it.first == characteristic }.second
+      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()} result $result" }
     }
   }
 

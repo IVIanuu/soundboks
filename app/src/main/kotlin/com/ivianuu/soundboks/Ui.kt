@@ -149,7 +149,7 @@ import kotlinx.coroutines.flow.map
             item {
               SliderListItem(
                 value = model.config.volume,
-                onValueChangeFinished = model.updateVolume,
+                onValueChange = model.updateVolume,
                 stepPolicy = incrementingStepPolicy(0.05f),
                 title = { Text("Volume") },
                 valueText = { ScaledPercentageUnitText(it) }
