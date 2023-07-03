@@ -18,6 +18,7 @@ import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.result.catch
+import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
@@ -30,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 
 @Provide @Scoped<UiScope> class SoundboksRemote(
@@ -147,7 +149,9 @@ import java.util.*
         logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
         characteristic.value = message
         gatt.writeCharacteristic(characteristic)
-        writeResults.first { it.first == characteristic }
+        withTimeoutOrNull(300.milliseconds) {
+          writeResults.first { it.first == characteristic }
+        }
       }
     }
   }
