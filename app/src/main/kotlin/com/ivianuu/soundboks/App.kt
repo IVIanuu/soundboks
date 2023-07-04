@@ -7,9 +7,7 @@ package com.ivianuu.soundboks
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scope
 import com.ivianuu.essentials.app.EsApp
-import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Providers
-import com.ivianuu.injekt.common.Elements
 import com.ivianuu.injekt.inject
 
 class App : EsApp() {

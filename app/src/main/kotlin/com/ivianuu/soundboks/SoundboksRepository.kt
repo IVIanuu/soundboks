@@ -7,54 +7,50 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.compose.compositionStateFlow
+import com.ivianuu.essentials.cast
+import com.ivianuu.essentials.compose.compositionFlow
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.data.DataStore
-import com.ivianuu.essentials.data.DataStoreModule
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
-import com.ivianuu.essentials.ui.UiScope
+import com.ivianuu.essentials.util.BroadcastsFactory
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.shareIn
 
-@Provide @Scoped<UiScope> class SoundboksRepository(
+@Provide @Scoped<AppScope> class SoundboksRepository(
   private val bluetoothManager: @SystemService BluetoothManager,
+  private val broadcastsFactory: BroadcastsFactory,
   private val logger: Logger,
   permissionManager: PermissionManager,
   private val pref: DataStore<SoundboksPrefs>,
   private val remote: SoundboksRemote,
-  scope: ScopedCoroutineScope<UiScope>
+  scope: ScopedCoroutineScope<AppScope>
 ) {
   @SuppressLint("MissingPermission")
-  val soundbokses: StateFlow<List<Soundboks>> = scope.compositionStateFlow {
+  val soundbokses: Flow<List<Soundboks>> = compositionFlow {
     if (!permissionManager.permissionState(soundboksPermissionKeys).collectAsState(false).value)
-      return@compositionStateFlow emptyList()
+      return@compositionFlow emptyList()
 
     var soundbokses by remember { mutableStateOf(emptySet<Soundboks>()) }
 
@@ -74,6 +70,25 @@ import kotlinx.coroutines.sync.withLock
             }
         }
       }
+    }
+
+    LaunchedEffect(true) {
+      broadcastsFactory(
+        BluetoothAdapter.ACTION_STATE_CHANGED,
+        BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+        BluetoothDevice.ACTION_ACL_CONNECTED,
+        BluetoothDevice.ACTION_ACL_DISCONNECTED
+      )
+        .onStart<Any?> { emit(Unit) }
+        .map {
+          bluetoothManager.adapter.bondedDevices
+            .filter {
+              it.isSoundboks() &&
+                  BluetoothDevice::class.java.getDeclaredMethod("isConnected").invoke(it).cast()
+            }
+            .map { it.toSoundboks() }
+        }
+        .collect { soundbokses += it }
     }
 
     DisposableEffect(true) {
@@ -101,5 +116,5 @@ import kotlinx.coroutines.sync.withLock
       remember(soundbokses) { logger.log { "soundbokses changed $soundbokses" } }
 
     soundbokses.toList()
-  }
+  }.shareIn(scope, SharingStarted.WhileSubscribed())
 }

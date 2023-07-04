@@ -1,26 +1,39 @@
 package com.ivianuu.soundboks
 
+import android.bluetooth.BluetoothDevice
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import com.ivianuu.essentials.AppScope
+import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.app.AppForegroundScope
 import com.ivianuu.essentials.app.ScopeComposition
+import com.ivianuu.essentials.broadcast.BroadcastHandler
+import com.ivianuu.essentials.compose.launchComposition
+import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.time.seconds
 import com.ivianuu.injekt.Provide
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
-import java.util.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.UUID
+
+fun interface SoundboksConfigApplier : ScopeComposition<AppForegroundScope>
 
 @Provide fun soundboksConfigApplier(
   logger: Logger,
   pref: DataStore<SoundboksPrefs>,
   remote: SoundboksRemote,
   repository: SoundboksRepository
-) = ScopeComposition<AppForegroundScope> {
+) = SoundboksConfigApplier {
   repository.soundbokses.collectAsState(null).value?.forEach { soundboks ->
     key(soundboks) {
       val config = remember {
@@ -96,6 +109,35 @@ import java.util.*
           }
         }
       }
+    }
+  }
+}
+
+@Provide fun soundboksBroadcastHandler(
+  applierFactory: () -> SoundboksConfigApplier,
+  logger: Logger,
+  scope: ScopedCoroutineScope<AppScope>
+): @Scoped<AppScope> BroadcastHandler {
+  var applierJob: Job? = null
+  var cancelJob: Job? = null
+  return BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
+    val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
+    if (!device.isSoundboks()) return@BroadcastHandler
+
+    if (applierJob == null) {
+      logger.log { "apply configs" }
+      applierJob = scope.launchComposition {
+        applierFactory()()
+      }
+    }
+
+    cancelJob?.cancel()?.also { logger.log { "stop cancel timer" } }
+    cancelJob = scope.launch {
+      logger.log { "start cancel timer" }
+      delay(30.seconds)
+      logger.log { "stop apply configs" }
+      applierJob?.cancel()
+      applierJob = null
     }
   }
 }

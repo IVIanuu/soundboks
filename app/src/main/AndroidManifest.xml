@@ -22,5 +22,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Es"
         android:allowBackup="false"
-        tools:ignore="AllowBackup,GoogleAppIndexingWarning" />
+        tools:ignore="AllowBackup,GoogleAppIndexingWarning">
+        <receiver
+            android:name="com.ivianuu.essentials.broadcast.EsBroadcastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>

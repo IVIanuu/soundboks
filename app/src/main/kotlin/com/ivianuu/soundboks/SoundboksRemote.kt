@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
+import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.EventFlow
@@ -19,7 +20,6 @@ import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.result.catch
 import com.ivianuu.essentials.time.milliseconds
-import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 
-@Provide @Scoped<UiScope> class SoundboksRemote(
+@Provide @Scoped<AppScope> class SoundboksRemote(
   private val logger: Logger,
   private val serverFactory: (String, Int?) -> SoundboksServer
 ) {
@@ -67,7 +67,7 @@ import java.util.*
   bluetoothManager: @SystemService BluetoothManager,
   private val coroutineContexts: CoroutineContexts,
   private val logger: Logger,
-  private val scope: ScopedCoroutineScope<UiScope>
+  private val scope: ScopedCoroutineScope<AppScope>
 ) {
   val isConnected = MutableSharedFlow<Boolean>(
     replay = 1,

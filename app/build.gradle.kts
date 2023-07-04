@@ -49,6 +49,7 @@ android {
 
 dependencies {
   implementation(Deps.Essentials.android)
+  implementation(Deps.Essentials.broadcast)
   implementation(Deps.Essentials.permission)
   implementation(Deps.Essentials.rubik)
 }
