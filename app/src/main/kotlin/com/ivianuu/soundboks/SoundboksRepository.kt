@@ -49,7 +49,7 @@ import kotlinx.coroutines.flow.shareIn
 ) {
   @SuppressLint("MissingPermission")
   val soundbokses: Flow<List<Soundboks>> = compositionFlow {
-    if (!permissionManager.permissionState(soundboksPermissionKeys).collectAsState(false).value)
+    if (!remember { permissionManager.permissionState(soundboksPermissionKeys) }.collectAsState(false).value)
       return@compositionFlow emptyList()
 
     var soundbokses by remember { mutableStateOf(emptySet<Soundboks>()) }
