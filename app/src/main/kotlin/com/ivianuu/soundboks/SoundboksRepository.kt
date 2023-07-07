@@ -116,5 +116,5 @@ import kotlinx.coroutines.flow.shareIn
       remember(soundbokses) { logger.log { "soundbokses changed $soundbokses" } }
 
     soundbokses.toList()
-  }.shareIn(scope, SharingStarted.WhileSubscribed(1000))
+  }.shareIn(scope, SharingStarted.WhileSubscribed())
 }

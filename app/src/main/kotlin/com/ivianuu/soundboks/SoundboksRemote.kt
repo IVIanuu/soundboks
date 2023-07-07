@@ -19,7 +19,6 @@ import com.ivianuu.essentials.coroutines.withResource
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.result.catch
-import com.ivianuu.essentials.time.milliseconds
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
 import com.ivianuu.injekt.android.SystemService
@@ -33,6 +32,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 @Provide @Scoped<AppScope> class SoundboksRemote(
   private val logger: Logger,

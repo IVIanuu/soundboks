@@ -17,14 +17,13 @@ import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
-import com.ivianuu.essentials.time.seconds
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
+import kotlin.time.Duration.Companion.seconds
 
 fun interface SoundboksConfigApplier : ScopeComposition<AppForegroundScope>
 
