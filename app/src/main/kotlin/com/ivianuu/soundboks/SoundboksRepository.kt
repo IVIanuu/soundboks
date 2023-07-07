@@ -43,7 +43,7 @@ import kotlinx.coroutines.flow.shareIn
   private val broadcastsFactory: BroadcastsFactory,
   private val logger: Logger,
   permissionManager: PermissionManager,
-  private val pref: DataStore<SoundboksPrefs>,
+  private val prefsDataStore: DataStore<SoundboksPrefs>,
   private val remote: SoundboksRemote,
   scope: ScopedCoroutineScope<AppScope>
 ) {
@@ -57,7 +57,7 @@ import kotlinx.coroutines.flow.shareIn
     soundbokses.forEach { soundboks ->
       key(soundboks.address) {
         LaunchedEffect(true) {
-          pref.data
+          prefsDataStore.data
             .map { it.configs[soundboks.address]?.pin }
             .distinctUntilChanged()
             .collectLatest { pin ->
@@ -116,5 +116,5 @@ import kotlinx.coroutines.flow.shareIn
       remember(soundbokses) { logger.log { "soundbokses changed $soundbokses" } }
 
     soundbokses.toList()
-  }.shareIn(scope, SharingStarted.WhileSubscribed())
+  }.shareIn(scope, SharingStarted.WhileSubscribed(), 1)
 }

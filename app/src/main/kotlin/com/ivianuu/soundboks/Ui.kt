@@ -292,11 +292,11 @@ data class HomeModel(
 @Provide fun homeModel(
   appForegroundState: Flow<AppForegroundState>,
   navigator: Navigator,
-  pref: DataStore<SoundboksPrefs>,
+  prefsDataStore: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
   remote: SoundboksRemote
 ) = Model {
-  val prefs by pref.data.collectAsState(SoundboksPrefs())
+  val prefs by prefsDataStore.data.collectAsState(SoundboksPrefs())
 
   val soundbokses by remember {
     appForegroundState
@@ -311,7 +311,7 @@ data class HomeModel(
     .merge()
 
   suspend fun updateConfig(block: SoundboksConfig.() -> SoundboksConfig) {
-    pref.updateData {
+    prefsDataStore.updateData {
       copy(
         configs = buildMap {
           putAll(configs)
@@ -342,7 +342,7 @@ data class HomeModel(
     selectedSoundbokses = prefs.selectedSoundbokses,
     connectedSoundbokses = connectedSoundbokses,
     toggleSoundboksSelection = action { soundboks, longClick ->
-      pref.updateData {
+      prefsDataStore.updateData {
         copy(
           selectedSoundbokses = if (!longClick) setOf(soundboks.address)
           else selectedSoundbokses.toMutableSet().apply {
@@ -353,7 +353,7 @@ data class HomeModel(
       }
     },
     toggleAllSoundboksSelections = action {
-      pref.updateData {
+      prefsDataStore.updateData {
         val allSoundbokses =
           soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
         copy(
