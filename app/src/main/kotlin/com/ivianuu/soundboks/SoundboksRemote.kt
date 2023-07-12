@@ -10,18 +10,18 @@ import android.bluetooth.BluetoothProfile
 import com.ivianuu.essentials.AppContext
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
+import com.ivianuu.essentials.SystemService
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.EventFlow
-import com.ivianuu.essentials.coroutines.RefCountedResource
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.race
-import com.ivianuu.essentials.coroutines.withResource
+import com.ivianuu.essentials.coroutines.sharedResource
+import com.ivianuu.essentials.coroutines.use
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.result.catch
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
-import com.ivianuu.injekt.android.SystemService
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -36,9 +36,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @Provide @Scoped<AppScope> class SoundboksRemote(
   private val logger: Logger,
-  private val serverFactory: (String, Int?) -> SoundboksServer
+  private val serverFactory: (String, Int?) -> SoundboksServer,
+  private val scope: ScopedCoroutineScope<AppScope>
 ) {
-  private val servers = RefCountedResource<Pair<String, Int?>, SoundboksServer>(
+  private val servers = scope.sharedResource<Pair<String, Int?>, SoundboksServer>(
     create = { serverFactory(it.first, it.second) },
     release = { _, server -> server.close() }
   )
@@ -47,7 +48,7 @@ import kotlin.time.Duration.Companion.milliseconds
     address: String,
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
-  ): R? = servers.withResource(address to pin) {
+  ): R? = servers.use(address to pin) {
     it.isConnected.first { it }
     race(
       { block(it) },

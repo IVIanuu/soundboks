@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
+import com.ivianuu.essentials.SystemService
 import com.ivianuu.essentials.cast
 import com.ivianuu.essentials.compose.compositionFlow
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
@@ -27,10 +28,8 @@ import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
 import com.ivianuu.essentials.util.BroadcastsFactory
 import com.ivianuu.injekt.Provide
-import com.ivianuu.injekt.android.SystemService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -113,7 +112,7 @@ import kotlinx.coroutines.flow.shareIn
     }
 
     if (logger.isLoggingEnabled.value)
-      remember(soundbokses) { logger.log { "soundbokses changed $soundbokses" } }
+      LaunchedEffect(soundbokses) { logger.log { "soundbokses changed $soundbokses" } }
 
     soundbokses.toList()
   }.shareIn(scope, SharingStarted.WhileSubscribed(), 1)

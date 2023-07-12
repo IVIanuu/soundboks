@@ -10,9 +10,12 @@ import androidx.compose.runtime.remember
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.app.AppForegroundScope
+import com.ivianuu.essentials.app.ScopeComposition
 import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.broadcast.BroadcastHandler
 import com.ivianuu.essentials.compose.compositionFlow
+import com.ivianuu.essentials.compose.launchComposition
+import com.ivianuu.essentials.compose.sharedComposition
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.race
@@ -40,105 +43,100 @@ object SoundboksConfigApplier
   prefsDataStore: DataStore<SoundboksPrefs>,
   remote: SoundboksRemote,
   scope: ScopedCoroutineScope<AppScope>
-) = compositionFlow {
-  DisposableEffect(true) {
-    logger.log { "apply configs" }
-    onDispose { logger.log { "stop apply configs" } }
-  }
+): @Scoped<AppScope> @Composable () -> SoundboksConfigApplier =
+  scope.sharedComposition(SharingStarted.WhileSubscribed(1000)) {
+    DisposableEffect(true) {
+      logger.log { "apply configs" }
+      onDispose { logger.log { "stop apply configs" } }
+    }
 
-  repository.soundbokses.collectAsState(null).value?.forEach { soundboks ->
-    key(soundboks) {
-      val config = remember {
-        prefsDataStore.data
-          .map { it.configs[soundboks.address] ?: SoundboksConfig() }
-      }.collectAsState(null).value
+    repository.soundbokses.collectAsState(null).value?.forEach { soundboks ->
+      key(soundboks) {
+        val config = remember {
+          prefsDataStore.data
+            .map { it.configs[soundboks.address] ?: SoundboksConfig() }
+        }.collectAsState(null).value
 
-      if (config != null) {
-        @Composable fun <T> SoundboksCharacteristic(
-          tag: String,
-          serviceId: UUID,
-          characteristicId: UUID,
-          value: T,
-          toByteArray: (T) -> ByteArray
-        ) {
-          LaunchedEffect(config.pin, value) {
-            remote.withSoundboks<Unit>(soundboks.address, config.pin) {
-              logger.log { "${device.debugName()} apply $tag $value" }
-              updateCharacteristic(serviceId, characteristicId, toByteArray(value))
+        if (config != null) {
+          @Composable fun <T> SoundboksCharacteristic(
+            tag: String,
+            serviceId: UUID,
+            characteristicId: UUID,
+            value: T,
+            toByteArray: (T) -> ByteArray
+          ) {
+            LaunchedEffect(config.pin, value) {
+              remote.withSoundboks<Unit>(soundboks.address, config.pin) {
+                logger.log { "${device.debugName()} apply $tag $value" }
+                updateCharacteristic(serviceId, characteristicId, toByteArray(value))
+              }
             }
           }
-        }
 
-        SoundboksCharacteristic(
-          tag = "volume",
-          serviceId = UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
-          characteristicId = UUID.fromString("7649b19f-c605-46e2-98f8-6c1808e0cfb4"),
-          value = config.volume
-        ) {
-          byteArrayOf(
-            lerp(0, 255, it)
-              .let { if (it > 127) it - 256 else it }
-              .toByte()
-          )
-        }
-
-        SoundboksCharacteristic(
-          tag = "sound profile",
-          serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
-          characteristicId = UUID.fromString("57a394fb-6d89-4105-8f07-bf730338a9b2"),
-          value = config.soundProfile
-        ) {
-          when (it) {
-            SoundProfile.BASS -> byteArrayOf(1)
-            SoundProfile.POWER -> byteArrayOf(0)
-            SoundProfile.INDOOR -> byteArrayOf(2)
+          SoundboksCharacteristic(
+            tag = "volume",
+            serviceId = UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
+            characteristicId = UUID.fromString("7649b19f-c605-46e2-98f8-6c1808e0cfb4"),
+            value = config.volume
+          ) {
+            byteArrayOf(
+              lerp(0, 255, it)
+                .let { if (it > 127) it - 256 else it }
+                .toByte()
+            )
           }
-        }
 
-        SoundboksCharacteristic(
-          tag = "channel",
-          serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
-          characteristicId = UUID.fromString("7d0d651e-62ae-4ef2-a727-0e8f3e9b4dfb"),
-          value = config.channel
-        ) {
-          when (it) {
-            SoundChannel.LEFT -> byteArrayOf(1)
-            SoundChannel.MONO -> byteArrayOf(0)
-            SoundChannel.RIGHT -> byteArrayOf(2)
+          SoundboksCharacteristic(
+            tag = "sound profile",
+            serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
+            characteristicId = UUID.fromString("57a394fb-6d89-4105-8f07-bf730338a9b2"),
+            value = config.soundProfile
+          ) {
+            when (it) {
+              SoundProfile.BASS -> byteArrayOf(1)
+              SoundProfile.POWER -> byteArrayOf(0)
+              SoundProfile.INDOOR -> byteArrayOf(2)
+            }
           }
-        }
 
-        SoundboksCharacteristic(
-          tag = "team up mode",
-          serviceId = UUID.fromString("46c69d1b-7194-46f0-837c-ab7a6b94566f"),
-          characteristicId = UUID.fromString("37bffa18-7f5a-4c8d-8a2d-362866cedfad"),
-          value = config.teamUpMode
-        ) {
-          when (it) {
-            TeamUpMode.SOLO -> byteArrayOf(115, 111, 108, 111)
-            TeamUpMode.HOST -> byteArrayOf(104, 111, 115, 116)
-            TeamUpMode.JOIN -> byteArrayOf(106, 111, 105, 110)
+          SoundboksCharacteristic(
+            tag = "channel",
+            serviceId = UUID.fromString("3bbed7cf-287c-4333-9abf-2f0fbf161c79"),
+            characteristicId = UUID.fromString("7d0d651e-62ae-4ef2-a727-0e8f3e9b4dfb"),
+            value = config.channel
+          ) {
+            when (it) {
+              SoundChannel.LEFT -> byteArrayOf(1)
+              SoundChannel.MONO -> byteArrayOf(0)
+              SoundChannel.RIGHT -> byteArrayOf(2)
+            }
+          }
+
+          SoundboksCharacteristic(
+            tag = "team up mode",
+            serviceId = UUID.fromString("46c69d1b-7194-46f0-837c-ab7a6b94566f"),
+            characteristicId = UUID.fromString("37bffa18-7f5a-4c8d-8a2d-362866cedfad"),
+            value = config.teamUpMode
+          ) {
+            when (it) {
+              TeamUpMode.SOLO -> byteArrayOf(115, 111, 108, 111)
+              TeamUpMode.HOST -> byteArrayOf(104, 111, 115, 116)
+              TeamUpMode.JOIN -> byteArrayOf(106, 111, 105, 110)
+            }
           }
         }
       }
     }
+
+    SoundboksConfigApplier
   }
 
-  SoundboksConfigApplier
-}.shareIn(scope, SharingStarted.WhileSubscribed(1000))
-
 @Provide fun soundboksForegroundApplierRunner(
-  applier: Flow<SoundboksConfigApplier>,
-  logger: Logger
-) = ScopeWorker<AppForegroundScope> {
-  onCancel(block = {
-    logger.log { "apply configs foreground" }
-    applier.collect()
-  }) { logger.log { "stop apply configs foreground" } }
-}
+  applier: @Composable () -> SoundboksConfigApplier
+) = ScopeComposition<AppForegroundScope> { applier() }
 
 @Provide fun soundboksBroadcastApplierRunner(
-  applier: Flow<SoundboksConfigApplier>,
+  applier: @Composable () -> SoundboksConfigApplier,
   logger: Logger,
   scope: ScopedCoroutineScope<AppScope>
 ): @Scoped<AppScope> BroadcastHandler {
@@ -150,7 +148,7 @@ object SoundboksConfigApplier
     job?.cancel()
     job = scope.launch {
       race(
-        { applier.collect() },
+        { launchComposition { applier() } },
         {
           logger.log { "apply configs broadcast" }
           delay(30.seconds)
