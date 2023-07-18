@@ -327,7 +327,7 @@ data class HomeModel(
     .getOrElse { emptyList() }
     .mapNotNullTo(mutableSetOf()) { soundboks ->
       key(soundboks) {
-        val isConnected by produceState(false) {
+        val isConnected by produceState(false, prefs.configs[soundboks.address]?.pin) {
           remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
             isConnected.collect { value = it }
           }

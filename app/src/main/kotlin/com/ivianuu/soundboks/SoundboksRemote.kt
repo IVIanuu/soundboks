@@ -13,7 +13,10 @@ import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.SystemService
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.EventFlow
+import com.ivianuu.essentials.coroutines.Releasable
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
+import com.ivianuu.essentials.coroutines.bracket
+import com.ivianuu.essentials.coroutines.guarantee
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.sharedResource
 import com.ivianuu.essentials.coroutines.use
@@ -37,7 +40,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Provide @Scoped<AppScope> class SoundboksRemote(
   private val logger: Logger,
   private val serverFactory: (String, Int?) -> SoundboksServer,
-  private val scope: ScopedCoroutineScope<AppScope>
+  scope: ScopedCoroutineScope<AppScope>
 ) {
   private val servers = scope.sharedResource<Pair<String, Int?>, SoundboksServer>(
     create = { serverFactory(it.first, it.second) },

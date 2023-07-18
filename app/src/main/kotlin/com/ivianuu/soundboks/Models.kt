@@ -29,7 +29,7 @@ fun Soundboks.debugName() = "[$name ~ $address]"
   val configs: Map<String, SoundboksConfig> = emptyMap(),
   val selectedSoundbokses: Set<String> = emptySet()
 ) {
-  companion object {
+  @Provide companion object {
     @Provide val dataStoreModule = DataStoreModule("soundboks_prefs") { SoundboksPrefs() }
   }
 }

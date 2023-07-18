@@ -11,13 +11,10 @@ import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.app.AppForegroundScope
 import com.ivianuu.essentials.app.ScopeComposition
-import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.broadcast.BroadcastHandler
-import com.ivianuu.essentials.compose.compositionFlow
 import com.ivianuu.essentials.compose.launchComposition
 import com.ivianuu.essentials.compose.sharedComposition
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
-import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
@@ -26,11 +23,8 @@ import com.ivianuu.essentials.logging.log
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
@@ -44,7 +38,7 @@ object SoundboksConfigApplier
   remote: SoundboksRemote,
   scope: ScopedCoroutineScope<AppScope>
 ): @Scoped<AppScope> @Composable () -> SoundboksConfigApplier =
-  scope.sharedComposition(SharingStarted.WhileSubscribed(1000)) {
+  scope.sharedComposition(SharingStarted.WhileSubscribed(1000, 0)) {
     DisposableEffect(true) {
       logger.log { "apply configs" }
       onDispose { logger.log { "stop apply configs" } }
