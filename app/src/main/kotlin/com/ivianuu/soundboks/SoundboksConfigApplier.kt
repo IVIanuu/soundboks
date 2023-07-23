@@ -10,11 +10,14 @@ import androidx.compose.runtime.remember
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.app.AppForegroundScope
+import com.ivianuu.essentials.app.AppForegroundState
 import com.ivianuu.essentials.app.ScopeComposition
+import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.broadcast.BroadcastHandler
 import com.ivianuu.essentials.compose.launchComposition
 import com.ivianuu.essentials.compose.sharedComposition
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
+import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
@@ -22,10 +25,16 @@ import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
@@ -38,7 +47,7 @@ object SoundboksConfigApplier
   remote: SoundboksRemote,
   scope: ScopedCoroutineScope<AppScope>
 ): @Scoped<AppScope> @Composable () -> SoundboksConfigApplier =
-  scope.sharedComposition(SharingStarted.WhileSubscribed(1000, 0)) {
+  scope.sharedComposition(SharingStarted.WhileSubscribed(10000, 0)) {
     DisposableEffect(true) {
       logger.log { "apply configs" }
       onDispose { logger.log { "stop apply configs" } }
@@ -130,12 +139,15 @@ object SoundboksConfigApplier
 ) = ScopeComposition<AppForegroundScope> { applier() }
 
 @Provide fun soundboksBroadcastApplierRunner(
+  foregroundState: Flow<AppForegroundState>,
   applier: @Composable () -> SoundboksConfigApplier,
   logger: Logger,
   scope: ScopedCoroutineScope<AppScope>
 ): @Scoped<AppScope> BroadcastHandler {
   var job: Job? = null
   return BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
+    if (foregroundState.first() == AppForegroundState.FOREGROUND) return@BroadcastHandler
+
     val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
     if (!device.isSoundboks()) return@BroadcastHandler
 
@@ -145,7 +157,7 @@ object SoundboksConfigApplier
         { launchComposition { applier() } },
         {
           logger.log { "apply configs broadcast" }
-          delay(30.seconds)
+          delay(20.seconds)
           logger.log { "stop apply configs broadcast" }
         }
       )
