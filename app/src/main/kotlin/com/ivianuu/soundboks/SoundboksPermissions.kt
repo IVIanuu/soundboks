@@ -5,7 +5,7 @@
 package com.ivianuu.soundboks
 
 import android.Manifest
-import com.ivianuu.essentials.app.AppForegroundScope
+import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.permission.PermissionManager
 import com.ivianuu.essentials.permission.runtime.RuntimePermission
@@ -36,6 +36,6 @@ val soundboksPermissionKeys = listOf(
 // always request permissions when launching the ui
 @Provide fun soundboksPermissionRequestWorker(
   permissionManager: PermissionManager
-) = ScopeWorker<AppForegroundScope> {
+) = ScopeWorker<AppVisibleScope> {
   permissionManager.requestPermissions(soundboksPermissionKeys)
 }

@@ -10,7 +10,6 @@ import androidx.compose.runtime.remember
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.ScopeManager
 import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.app.AppForegroundScope
 import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.app.ScopeComposition
 import com.ivianuu.essentials.app.ScopeWorker
@@ -138,7 +137,7 @@ object SoundboksConfigApplier
 
 @Provide fun soundboksForegroundApplierRunner(
   applier: @Composable () -> SoundboksConfigApplier
-) = ScopeComposition<AppForegroundScope> { applier() }
+) = ScopeComposition<AppVisibleScope> { applier() }
 
 @Provide fun soundboksBroadcastApplierRunner(
   applier: @Composable () -> SoundboksConfigApplier,
