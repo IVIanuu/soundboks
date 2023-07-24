@@ -40,11 +40,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
-import com.ivianuu.essentials.app.AppForegroundState
+import com.ivianuu.essentials.ScopeManager
+import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.compose.action
-import com.ivianuu.essentials.coroutines.infiniteEmptyFlow
 import com.ivianuu.essentials.coroutines.parForEach
 import com.ivianuu.essentials.data.DataStore
+import com.ivianuu.essentials.flowInScope
+import com.ivianuu.essentials.repeatInScope
 import com.ivianuu.essentials.resource.Resource
 import com.ivianuu.essentials.resource.collectAsResourceState
 import com.ivianuu.essentials.resource.getOrElse
@@ -54,10 +56,10 @@ import com.ivianuu.essentials.ui.common.UiRenderer
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.TextInputScreen
 import com.ivianuu.essentials.ui.layout.center
+import com.ivianuu.essentials.ui.material.AppBar
 import com.ivianuu.essentials.ui.material.Button
 import com.ivianuu.essentials.ui.material.ListItem
 import com.ivianuu.essentials.ui.material.Scaffold
-import com.ivianuu.essentials.ui.material.TopAppBar
 import com.ivianuu.essentials.ui.material.esButtonColors
 import com.ivianuu.essentials.ui.material.guessingContentColorFor
 import com.ivianuu.essentials.ui.material.incrementingStepPolicy
@@ -73,8 +75,6 @@ import com.ivianuu.essentials.ui.prefs.SliderListItem
 import com.ivianuu.essentials.ui.resource.ResourceBox
 import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flatMapLatest
 
 @Provide val soundboksAppColors = AppColors(
   primary = Color(0xFFF19066),
@@ -86,7 +86,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 @Provide val homeUi = Ui<HomeScreen, HomeModel> { model ->
   Scaffold(
     topBar = {
-      TopAppBar(
+      AppBar(
         title = { Text("Soundboks") },
         actions = {
           PopupMenuButton {
@@ -290,20 +290,16 @@ data class HomeModel(
 )
 
 @Provide fun homeModel(
-  appForegroundState: Flow<AppForegroundState>,
   navigator: Navigator,
   prefsDataStore: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
-  remote: SoundboksRemote
+  remote: SoundboksRemote,
+  scopeManager: ScopeManager
 ) = Model {
   val prefs by prefsDataStore.data.collectAsState(SoundboksPrefs())
 
   val soundbokses by remember {
-    appForegroundState
-      .flatMapLatest {
-        if (it == AppForegroundState.FOREGROUND) repository.soundbokses
-        else infiniteEmptyFlow()
-      }
+    scopeManager.flowInScope<AppVisibleScope, _>(repository.soundbokses)
   }.collectAsResourceState()
 
   val config = prefs.selectedSoundbokses
@@ -328,8 +324,10 @@ data class HomeModel(
     .mapNotNullTo(mutableSetOf()) { soundboks ->
       key(soundboks) {
         val isConnected by produceState(false, prefs.configs[soundboks.address]?.pin) {
-          remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
-            isConnected.collect { value = it }
+          scopeManager.repeatInScope<AppVisibleScope> {
+            remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
+              isConnected.collect { value = it }
+            }
           }
         }
 

@@ -8,9 +8,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import com.ivianuu.essentials.AppScope
+import com.ivianuu.essentials.ScopeManager
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.app.AppForegroundScope
-import com.ivianuu.essentials.app.AppForegroundState
+import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.app.ScopeComposition
 import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.broadcast.BroadcastHandler
@@ -23,6 +24,7 @@ import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
+import com.ivianuu.essentials.scopeOfOrNull
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -47,7 +49,7 @@ object SoundboksConfigApplier
   remote: SoundboksRemote,
   scope: ScopedCoroutineScope<AppScope>
 ): @Scoped<AppScope> @Composable () -> SoundboksConfigApplier =
-  scope.sharedComposition(SharingStarted.WhileSubscribed(10000, 0)) {
+  scope.sharedComposition<SoundboksConfigApplier>(SharingStarted.WhileSubscribed(10000, 0)) {
     DisposableEffect(true) {
       logger.log { "apply configs" }
       onDispose { logger.log { "stop apply configs" } }
@@ -139,14 +141,14 @@ object SoundboksConfigApplier
 ) = ScopeComposition<AppForegroundScope> { applier() }
 
 @Provide fun soundboksBroadcastApplierRunner(
-  foregroundState: Flow<AppForegroundState>,
   applier: @Composable () -> SoundboksConfigApplier,
   logger: Logger,
-  scope: ScopedCoroutineScope<AppScope>
+  scope: ScopedCoroutineScope<AppScope>,
+  scopeManager: ScopeManager
 ): @Scoped<AppScope> BroadcastHandler {
   var job: Job? = null
   return BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
-    if (foregroundState.first() == AppForegroundState.FOREGROUND) return@BroadcastHandler
+    if (scopeManager.scopeOfOrNull<AppVisibleScope>().first() != null) return@BroadcastHandler
 
     val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
     if (!device.isSoundboks()) return@BroadcastHandler
