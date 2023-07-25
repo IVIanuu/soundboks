@@ -48,7 +48,7 @@ object SoundboksConfigApplier
   remote: SoundboksRemote,
   scope: ScopedCoroutineScope<AppScope>
 ): @Scoped<AppScope> @Composable () -> SoundboksConfigApplier =
-  scope.sharedComposition<SoundboksConfigApplier>(SharingStarted.WhileSubscribed(10000, 0)) {
+  scope.sharedComposition<SoundboksConfigApplier>(SharingStarted.WhileSubscribed(0L, 0)) {
     DisposableEffect(true) {
       logger.log { "apply configs" }
       onDispose { logger.log { "stop apply configs" } }
@@ -158,7 +158,7 @@ object SoundboksConfigApplier
         { launchComposition { applier() } },
         {
           logger.log { "apply configs broadcast" }
-          delay(20.seconds)
+          delay(30.seconds)
           logger.log { "stop apply configs broadcast" }
         }
       )
