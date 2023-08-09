@@ -21,11 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ContentAlpha
+import androidx.compose.material.Icon
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -120,6 +123,7 @@ import com.ivianuu.injekt.Provide
               SoundboksChip(
                 selected = allSoundbokses.all { it in model.selectedSoundbokses },
                 active = allSoundbokses.all { it in model.connectedSoundbokses },
+                playing = false,
                 onClick = model.toggleAllSoundboksSelections,
                 onLongClick = null
               ) {
@@ -130,6 +134,7 @@ import com.ivianuu.injekt.Provide
                 SoundboksChip(
                   selected = soundboks.address in model.selectedSoundbokses,
                   active = soundboks.address in model.connectedSoundbokses,
+                  playing = soundboks.address == model.playingSoundboks,
                   onClick = { model.toggleSoundboksSelection(soundboks, false) },
                   onLongClick = { model.toggleSoundboksSelection(soundboks, true) }
                 ) {
@@ -239,6 +244,7 @@ import com.ivianuu.injekt.Provide
 @Composable private fun SoundboksChip(
   selected: Boolean,
   active: Boolean,
+  playing: Boolean,
   onClick: () -> Unit,
   onLongClick: (() -> Unit)?,
   content: @Composable () -> Unit
@@ -255,7 +261,7 @@ import com.ivianuu.injekt.Provide
     color = backgroundColor,
     contentColor = contentColor
   ) {
-    Box(
+    Row(
       modifier = Modifier
         .combinedClickable(
           interactionSource = remember { MutableInteractionSource() },
@@ -264,12 +270,15 @@ import com.ivianuu.injekt.Provide
           onLongClick = onLongClick
         )
         .padding(horizontal = 8.dp, vertical = 8.dp),
-      contentAlignment = Alignment.Center
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start)
     ) {
-      CompositionLocalProvider(
-        LocalTextStyle provides MaterialTheme.typography.button,
-        content = content
-      )
+      CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.button) {
+        if (playing)
+          Icon(R.drawable.ic_volume_up)
+
+        content()
+      }
     }
   }
 }
@@ -278,6 +287,7 @@ data class HomeModel(
   val soundbokses: Resource<List<Soundboks>>,
   val selectedSoundbokses: Set<String>,
   val connectedSoundbokses: Set<String>,
+  val playingSoundboks: String?,
   val toggleSoundboksSelection: (Soundboks, Boolean) -> Unit,
   val toggleAllSoundboksSelections: () -> Unit,
   val config: SoundboksConfig,
@@ -339,6 +349,7 @@ data class HomeModel(
     soundbokses = soundbokses,
     selectedSoundbokses = prefs.selectedSoundbokses,
     connectedSoundbokses = connectedSoundbokses,
+    playingSoundboks = repository.playingSoundboks.collectAsState(null).value?.address,
     toggleSoundboksSelection = action { soundboks, longClick ->
       prefsDataStore.updateData {
         copy(

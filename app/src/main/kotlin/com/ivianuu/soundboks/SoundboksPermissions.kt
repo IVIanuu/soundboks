@@ -27,7 +27,7 @@ import com.ivianuu.injekt.common.typeKeyOf
   title = "Location"
 )
 
-val soundboksPermissionKeys = listOf(
+val soundboksPermissions = listOf(
   typeKeyOf<SoundboksBluetoothConnectPermission>(),
   typeKeyOf<SoundboksBluetoothScanPermission>(),
   typeKeyOf<SoundboksLocationPermission>()
@@ -37,5 +37,5 @@ val soundboksPermissionKeys = listOf(
 @Provide fun soundboksPermissionRequestWorker(
   permissionManager: PermissionManager
 ) = ScopeWorker<AppVisibleScope> {
-  permissionManager.requestPermissions(soundboksPermissionKeys)
+  permissionManager.requestPermissions(soundboksPermissions)
 }
