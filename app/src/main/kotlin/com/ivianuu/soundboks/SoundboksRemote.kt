@@ -37,6 +37,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 @Provide @Scoped<AppScope> class SoundboksRemote(
   private val logger: Logger,
@@ -44,7 +45,7 @@ import kotlin.time.Duration.Companion.milliseconds
   scope: ScopedCoroutineScope<AppScope>
 ) {
   private val servers = scope.sharedResource<Pair<String, Int?>, SoundboksServer>(
-    sharingStarted = SharingStarted.WhileSubscribed(1000, 0),
+    sharingStarted = SharingStarted.WhileSubscribed(15.minutes.inWholeMilliseconds, 0),
     create = { serverFactory(it.first, it.second) },
     release = { _, server -> server.close() }
   )
