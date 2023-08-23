@@ -45,7 +45,7 @@ import kotlin.time.Duration.Companion.minutes
   scope: ScopedCoroutineScope<AppScope>
 ) {
   private val servers = scope.sharedResource<Pair<String, Int?>, SoundboksServer>(
-    sharingStarted = SharingStarted.WhileSubscribed(15.minutes.inWholeMilliseconds, 0),
+    sharingStarted = SharingStarted.WhileSubscribed(30.minutes.inWholeMilliseconds, 0),
     create = { serverFactory(it.first, it.second) },
     release = { _, server -> server.close() }
   )
