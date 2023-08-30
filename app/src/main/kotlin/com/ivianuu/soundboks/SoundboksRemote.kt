@@ -54,13 +54,13 @@ import kotlin.time.Duration.Companion.minutes
     address: String,
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
-  ): R? = servers.use(address to pin) {
-    it.isConnected.first { it }
+  ): R? = servers.use(address to pin) { server ->
+    server.isConnected.first { it }
     race(
-      { block(it) },
+      { block(server) },
       {
-        it.isConnected.first { !it }
-        logger.log { "${it.device.debugName()} $pin cancel with soundboks" }
+        server.isConnected.first { !it }
+        logger.log { "${server.device.debugName()} $pin cancel with soundboks" }
       }
     ).unsafeCast()
   }
