@@ -156,7 +156,7 @@ import kotlin.time.Duration.Companion.minutes
       logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()} attempt $attempt" }
       characteristic.value = message
       gatt.writeCharacteristic(characteristic)
-      withTimeoutOrNull(100.milliseconds) {
+      withTimeoutOrNull(300.milliseconds) {
         writeResults.first { it.first == characteristic }
       } ?: run { if (attempt < 5) writeImpl(attempt + 1) }
     }
