@@ -151,14 +151,19 @@ import kotlin.time.Duration.Companion.minutes
     )
     val characteristic = service.getCharacteristic(characteristicId)
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
+
+    suspend fun writeImpl(attempt: Int) {
+      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()} attempt $attempt" }
+      characteristic.value = message
+      gatt.writeCharacteristic(characteristic)
+      withTimeoutOrNull(100.milliseconds) {
+        writeResults.first { it.first == characteristic }
+      } ?: run { if (attempt < 5) writeImpl(attempt + 1) }
+    }
+
     writeLock.withLock {
       withContext(NonCancellable) {
-        logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()}" }
-        characteristic.value = message
-        gatt.writeCharacteristic(characteristic)
-        withTimeoutOrNull(300.milliseconds) {
-          writeResults.first { it.first == characteristic }
-        }
+        writeImpl(1)
       }
     }
   }
