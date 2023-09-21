@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -81,38 +82,40 @@ import kotlin.time.Duration.Companion.minutes
   val device: BluetoothDevice = bluetoothManager.adapter.getRemoteDevice(address)
 
   init {
-    logger.log { "${device.debugName()} $pin init" }
     scope.launch {
-      guarantee(
-        block = {
-          bluetoothLe.connectGatt(androidx.bluetooth.BluetoothDevice(device)) {
-            logger.log { "here is a connection" }
-            if (pin != null) {
-              logger.log { "send pin $pin" }
-              writeCharacteristic(
-                characteristic = awaitCharacteristic(
-                  serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
-                  characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
-                ),
-                value = "aup${pin}".toByteArray()
+      while (coroutineContext.isActive) {
+        logger.log { "${device.debugName()} $pin init" }
+        guarantee(
+          block = {
+            bluetoothLe.connectGatt(androidx.bluetooth.BluetoothDevice(device)) {
+              logger.log { "here is a connection" }
+              if (pin != null) {
+                logger.log { "send pin $pin" }
+                writeCharacteristic(
+                  characteristic = awaitCharacteristic(
+                    serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
+                    characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
+                  ),
+                  value = "aup${pin}".toByteArray()
+                )
+              }
+
+              logger.log { "${device.debugName()} $pin ready" }
+
+              guarantee(
+                block = {
+                  client.emit(this)
+                  awaitCancellation()
+                },
+                finalizer = { client.emit(null) }
               )
             }
-
-            logger.log { "${device.debugName()} $pin ready" }
-
-            guarantee(
-              block = {
-                client.emit(this)
-                awaitCancellation()
-              },
-              finalizer = { client.emit(null) }
-            )
+          },
+          finalizer = {
+            logger.log { "oh ouch $it" }
           }
-        },
-        finalizer = {
-          logger.log { "oh ouch $it" }
-        }
-      )
+        )
+      }
     }
   }
 
