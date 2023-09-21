@@ -13,10 +13,7 @@ import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.SystemService
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.EventFlow
-import com.ivianuu.essentials.coroutines.Releasable
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
-import com.ivianuu.essentials.coroutines.bracket
-import com.ivianuu.essentials.coroutines.guarantee
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.sharedResource
 import com.ivianuu.essentials.coroutines.use
@@ -109,10 +106,10 @@ import kotlin.time.Duration.Companion.minutes
           scope.launch {
             if (pin != null) {
               logger.log { "send pin $pin" }
-              updateCharacteristic(
+              writeCharacteristic(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
                 characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
-                message = "aup${pin}".toByteArray()
+                value = "aup${pin}".toByteArray()
               )
             }
 
@@ -137,10 +134,10 @@ import kotlin.time.Duration.Companion.minutes
     logger.log { "${device.debugName()} $pin init" }
   }
 
-  suspend fun updateCharacteristic(
+  suspend fun writeCharacteristic(
     serviceId: UUID,
     characteristicId: UUID,
-    message: ByteArray
+    value: ByteArray
   ) = withContext(coroutineContexts.io) {
     val service = gatt.getService(serviceId) ?: error(
       "${device.debugName()} $pin service not found $serviceId $characteristicId ${
@@ -153,8 +150,8 @@ import kotlin.time.Duration.Companion.minutes
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
 
     suspend fun writeImpl(attempt: Int) {
-      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()} attempt $attempt" }
-      characteristic.value = message
+      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${value.contentToString()} attempt $attempt" }
+      characteristic.value = value
       gatt.writeCharacteristic(characteristic)
       withTimeoutOrNull(300.milliseconds) {
         writeResults.first { it.first == characteristic }
@@ -176,7 +173,7 @@ import kotlin.time.Duration.Companion.minutes
 }
 
 suspend fun SoundboksRemote.powerOff(address: String) = withSoundboks(address) {
-  updateCharacteristic(
+  writeCharacteristic(
     UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
     UUID.fromString("11ad501d-fa86-43cc-8d92-5a27ee672f1a"),
     byteArrayOf(0)

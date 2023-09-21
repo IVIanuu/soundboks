@@ -12,12 +12,10 @@ import com.ivianuu.essentials.ScopeManager
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.app.ScopeComposition
-import com.ivianuu.essentials.app.ScopeWorker
 import com.ivianuu.essentials.broadcast.BroadcastHandler
 import com.ivianuu.essentials.compose.launchComposition
 import com.ivianuu.essentials.compose.sharedComposition
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
-import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.lerp
@@ -26,16 +24,11 @@ import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.scopeOfOrNull
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
@@ -72,7 +65,7 @@ object SoundboksConfigApplier
             LaunchedEffect(config.pin, value) {
               remote.withSoundboks<Unit>(soundboks.address, config.pin) {
                 logger.log { "${device.debugName()} apply $tag $value" }
-                updateCharacteristic(serviceId, characteristicId, toByteArray(value))
+                writeCharacteristic(serviceId, characteristicId, toByteArray(value))
               }
             }
           }
