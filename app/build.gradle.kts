@@ -40,6 +40,7 @@ android {
 }
 
 dependencies {
+  implementation(Deps.androidxBluetooth)
   implementation(Deps.Essentials.android)
   implementation(Deps.Essentials.broadcast)
   implementation(Deps.Essentials.permission)

@@ -2,36 +2,35 @@ package com.ivianuu.soundboks
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
-import com.ivianuu.essentials.AppContext
+import androidx.bluetooth.BluetoothLe
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.SystemService
-import com.ivianuu.essentials.coroutines.CoroutineContexts
-import com.ivianuu.essentials.coroutines.EventFlow
-import com.ivianuu.essentials.coroutines.Releasable
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.bracket
+import com.ivianuu.essentials.coroutines.childCoroutineScope
 import com.ivianuu.essentials.coroutines.guarantee
+import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.sharedResource
 import com.ivianuu.essentials.coroutines.use
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
-import com.ivianuu.essentials.result.catch
 import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -54,15 +53,10 @@ import kotlin.time.Duration.Companion.minutes
     address: String,
     pin: Int? = null,
     block: suspend SoundboksServer.() -> R
-  ): R? = servers.use(address to pin) { server ->
-    server.isConnected.first { it }
-    race(
-      { block(server) },
-      {
-        server.isConnected.first { !it }
-        logger.log { "${server.device.debugName()} $pin cancel with soundboks" }
-      }
-    ).unsafeCast()
+  ): R = servers.use(address to pin) { server ->
+    server.withClient {
+      server.block()
+    }
   }
 }
 
@@ -70,115 +64,75 @@ import kotlin.time.Duration.Companion.minutes
 @Provide class SoundboksServer(
   address: String,
   private val pin: Int? = null,
-  appContext: AppContext,
+  private val bluetoothLe: BluetoothLe,
   bluetoothManager: @SystemService BluetoothManager,
-  private val coroutineContexts: CoroutineContexts,
   private val logger: Logger,
-  private val scope: ScopedCoroutineScope<AppScope>
+  appScope: ScopedCoroutineScope<AppScope>
 ) {
-  val isConnected = MutableSharedFlow<Boolean>(
+  private val scope = appScope.childCoroutineScope()
+
+  val client = MutableSharedFlow<BluetoothLe.GattClientScope?>(
     replay = 1,
     extraBufferCapacity = Int.MAX_VALUE,
     onBufferOverflow = BufferOverflow.SUSPEND
   )
+  val isConnected: Flow<Boolean> = client.map { it != null }.distinctUntilChanged()
 
-  val device = bluetoothManager.adapter.getRemoteDevice(address)
+  val device: BluetoothDevice = bluetoothManager.adapter.getRemoteDevice(address)
 
-  private val writeLock = Mutex()
-  private val writeResults = EventFlow<Pair<BluetoothGattCharacteristic, Int>>()
-
-  private val gatt: BluetoothGatt = bluetoothManager.adapter
-    .getRemoteDevice(address)
-    .connectGatt(
-      appContext,
-      true,
-      object : BluetoothGattCallback() {
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-          super.onConnectionStateChange(gatt, status, newState)
-          val isConnected = newState == BluetoothProfile.STATE_CONNECTED
-          logger.log { "${device.debugName()} $pin connection state changed $isConnected $newState" }
-          if (isConnected)
-            gatt.discoverServices()
-          else
-            this@SoundboksServer.isConnected.tryEmit(false)
-        }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-          super.onServicesDiscovered(gatt, status)
-          logger.log { "${device.debugName()} $pin services discovered" }
-          scope.launch {
+  init {
+    logger.log { "${device.debugName()} $pin init" }
+    scope.launch {
+      guarantee(
+        block = {
+          bluetoothLe.connectGatt(androidx.bluetooth.BluetoothDevice(device)) {
+            logger.log { "here is a connection" }
             if (pin != null) {
               logger.log { "send pin $pin" }
-              updateCharacteristic(
-                serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
-                characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
-                message = "aup${pin}".toByteArray()
+              writeCharacteristic(
+                characteristic = awaitCharacteristic(
+                  serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
+                  characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
+                ),
+                value = "aup${pin}".toByteArray()
               )
             }
 
             logger.log { "${device.debugName()} $pin ready" }
-            isConnected.emit(true)
+
+            guarantee(
+              block = {
+                client.emit(this)
+                awaitCancellation()
+              },
+              finalizer = { client.emit(null) }
+            )
           }
+        },
+        finalizer = {
+          logger.log { "oh ouch $it" }
         }
-
-        override fun onCharacteristicWrite(
-          gatt: BluetoothGatt,
-          characteristic: BluetoothGattCharacteristic,
-          status: Int
-        ) {
-          super.onCharacteristicWrite(gatt, characteristic, status)
-          writeResults.tryEmit(characteristic to status)
-        }
-      },
-      BluetoothDevice.TRANSPORT_LE
-    )
-
-  init {
-    logger.log { "${device.debugName()} $pin init" }
-  }
-
-  suspend fun updateCharacteristic(
-    serviceId: UUID,
-    characteristicId: UUID,
-    message: ByteArray
-  ) = withContext(coroutineContexts.io) {
-    val service = gatt.getService(serviceId) ?: error(
-      "${device.debugName()} $pin service not found $serviceId $characteristicId ${
-        gatt.services.map {
-          it.uuid
-        }
-      }"
-    )
-    val characteristic = service.getCharacteristic(characteristicId)
-      ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
-
-    suspend fun writeImpl(attempt: Int) {
-      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${message.contentToString()} attempt $attempt" }
-      characteristic.value = message
-      gatt.writeCharacteristic(characteristic)
-      withTimeoutOrNull(300.milliseconds) {
-        writeResults.first { it.first == characteristic }
-      } ?: run { if (attempt < 5) writeImpl(attempt + 1) }
-    }
-
-    writeLock.withLock {
-      withContext(NonCancellable) {
-        writeImpl(1)
-      }
+      )
     }
   }
 
-  suspend fun close() = withContext(coroutineContexts.io) {
+  suspend fun <R> withClient(block: suspend BluetoothLe.GattClientScope.() -> R): R =
+    client.filterNotNull().first().block()
+
+  suspend fun close() {
     logger.log { "${device.debugName()} $pin close" }
-    catch { gatt.disconnect() }
-    catch { gatt.close() }
+    scope.cancel()
   }
 }
 
 suspend fun SoundboksRemote.powerOff(address: String) = withSoundboks(address) {
-  updateCharacteristic(
-    UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
-    UUID.fromString("11ad501d-fa86-43cc-8d92-5a27ee672f1a"),
-    byteArrayOf(0)
-  )
+  withClient {
+    writeCharacteristic(
+      characteristic = awaitCharacteristic(
+        serviceId = UUID.fromString("445b9ffb-348f-4e1b-a417-3559b8138390"),
+        characteristicId = UUID.fromString("11ad501d-fa86-43cc-8d92-5a27ee672f1a")
+      ),
+      value = byteArrayOf(0)
+    )
+  }
 }

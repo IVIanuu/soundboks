@@ -72,7 +72,15 @@ object SoundboksConfigApplier
             LaunchedEffect(config.pin, value) {
               remote.withSoundboks<Unit>(soundboks.address, config.pin) {
                 logger.log { "${device.debugName()} apply $tag $value" }
-                updateCharacteristic(serviceId, characteristicId, toByteArray(value))
+                withClient {
+                  writeCharacteristic(
+                    characteristic = awaitCharacteristic(
+                      serviceId = serviceId,
+                      characteristicId = characteristicId,
+                    ),
+                    value = toByteArray(value)
+                  )
+                }
               }
             }
           }
