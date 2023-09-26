@@ -11,14 +11,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.Icon
 import androidx.compose.material.LocalContentColor
@@ -52,15 +49,12 @@ import com.ivianuu.essentials.resource.collectAsResourceState
 import com.ivianuu.essentials.resource.getOrElse
 import com.ivianuu.essentials.resource.getOrNull
 import com.ivianuu.essentials.ui.AppColors
-import com.ivianuu.essentials.ui.common.UiRenderer
 import com.ivianuu.essentials.ui.common.VerticalList
 import com.ivianuu.essentials.ui.dialog.TextInputScreen
 import com.ivianuu.essentials.ui.layout.center
 import com.ivianuu.essentials.ui.material.AppBar
-import com.ivianuu.essentials.ui.material.Button
 import com.ivianuu.essentials.ui.material.ListItem
 import com.ivianuu.essentials.ui.material.Scaffold
-import com.ivianuu.essentials.ui.material.esButtonColors
 import com.ivianuu.essentials.ui.material.guessingContentColorFor
 import com.ivianuu.essentials.ui.material.incrementingStepPolicy
 import com.ivianuu.essentials.ui.navigation.Model
@@ -71,9 +65,9 @@ import com.ivianuu.essentials.ui.navigation.push
 import com.ivianuu.essentials.ui.popup.PopupMenuButton
 import com.ivianuu.essentials.ui.popup.PopupMenuItem
 import com.ivianuu.essentials.ui.prefs.ScaledPercentageUnitText
+import com.ivianuu.essentials.ui.prefs.SingleChoiceToggleButtonGroupListItem
 import com.ivianuu.essentials.ui.prefs.SliderListItem
 import com.ivianuu.essentials.ui.resource.ResourceBox
-import com.ivianuu.injekt.Inject
 import com.ivianuu.injekt.Provide
 
 @Provide val soundboksAppColors = AppColors(
@@ -157,29 +151,29 @@ import com.ivianuu.injekt.Provide
             }
 
             item {
-              ToggleButtonGroup(
+              SingleChoiceToggleButtonGroupListItem(
                 selected = model.config.soundProfile,
                 values = SoundProfile.values().toList(),
                 onSelectionChanged = model.updateSoundProfile,
-                title = "Sound profile"
+                title = { Text("Sound profile") }
               )
             }
 
             item {
-              ToggleButtonGroup(
+              SingleChoiceToggleButtonGroupListItem(
                 selected = model.config.channel,
                 values = SoundChannel.values().toList(),
                 onSelectionChanged = model.updateChannel,
-                title = "Channel"
+                title = { Text("Channel") }
               )
             }
 
             item {
-              ToggleButtonGroup(
+              SingleChoiceToggleButtonGroupListItem(
                 selected = model.config.teamUpMode,
                 values = TeamUpMode.values().toList(),
                 onSelectionChanged = model.updateTeamUpMode,
-                title = "Team up mode"
+                title = { Text("Team up mode") }
               )
             }
 
@@ -190,47 +184,6 @@ import com.ivianuu.injekt.Provide
               )
             }
           }
-        }
-      }
-    }
-  }
-}
-
-@Composable private fun <T> ToggleButtonGroup(
-  selected: T,
-  values: List<T>,
-  onSelectionChanged: (T) -> Unit,
-  title: String,
-  @Inject renderer: UiRenderer<T>
-) {
-  Column(
-    modifier = Modifier
-      .height(88.dp)
-      .padding(horizontal = 16.dp),
-    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
-  ) {
-    Text(
-      text = title,
-      style = MaterialTheme.typography.subtitle1
-    )
-
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-      values.forEach { value ->
-        val targetBackgroundColor = if (value == selected) MaterialTheme.colors.secondary
-        else LocalContentColor.current.copy(alpha = ContentAlpha.disabled)
-        val backgroundColor by animateColorAsState(targetBackgroundColor)
-        val contentColor by animateColorAsState(guessingContentColorFor(targetBackgroundColor))
-        Button(
-          colors = ButtonDefaults.esButtonColors(
-            backgroundColor = backgroundColor,
-            contentColor = contentColor
-          ),
-          onClick = { onSelectionChanged(value) }
-        ) {
-          Text(renderer(value))
         }
       }
     }
