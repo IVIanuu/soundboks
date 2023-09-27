@@ -8,14 +8,14 @@ object Build {
   const val applicationId = "com.ivianuu.soundboks"
   const val compileSdk = 34
   const val minSdk = 31
-  const val targetSdk = 34
+  const val targetSdk = 33
   const val versionCode = 1
   const val versionName = "0.0.1"
 }
 
 object Deps {
   object Essentials {
-    private const val version = "0.0.1-dev1230"
+    private const val version = "0.0.1-dev1233"
     const val android = "com.ivianuu.essentials:android:$version"
     const val broadcast = "com.ivianuu.essentials:broadcast:$version"
     const val gradlePlugin = "com.ivianuu.essentials:gradle-plugin:$version"

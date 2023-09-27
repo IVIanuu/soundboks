@@ -57,8 +57,8 @@ import com.ivianuu.essentials.ui.material.ListItem
 import com.ivianuu.essentials.ui.material.Scaffold
 import com.ivianuu.essentials.ui.material.guessingContentColorFor
 import com.ivianuu.essentials.ui.material.incrementingStepPolicy
-import com.ivianuu.essentials.ui.navigation.Model
 import com.ivianuu.essentials.ui.navigation.Navigator
+import com.ivianuu.essentials.ui.navigation.Presenter
 import com.ivianuu.essentials.ui.navigation.RootScreen
 import com.ivianuu.essentials.ui.navigation.Ui
 import com.ivianuu.essentials.ui.navigation.push
@@ -77,20 +77,20 @@ import com.ivianuu.injekt.Provide
 
 @Provide class HomeScreen : RootScreen
 
-@Provide val homeUi = Ui<HomeScreen, HomeModel> { model ->
+@Provide val homeUi = Ui<HomeScreen, HomeState> { state ->
   Scaffold(
     topBar = {
       AppBar(
         title = { Text("Soundboks") },
         actions = {
           PopupMenuButton {
-            PopupMenuItem(onSelected = model.powerOff) { Text("Power off") }
+            PopupMenuItem(onSelected = state.powerOff) { Text("Power off") }
           }
         }
       )
     }
   ) {
-    ResourceBox(model.soundbokses) { value ->
+    ResourceBox(state.soundbokses) { value ->
       VerticalList {
         if (value.isEmpty()) {
           item {
@@ -109,13 +109,13 @@ import com.ivianuu.injekt.Provide
               crossAxisSpacing = 8.dp
             ) {
               val allSoundbokses =
-                model.soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
+                state.soundbokses.getOrNull()?.map { it.address }?.toSet() ?: emptySet()
 
               SoundboksChip(
-                selected = allSoundbokses.all { it in model.selectedSoundbokses },
-                active = allSoundbokses.all { it in model.connectedSoundbokses },
+                selected = allSoundbokses.all { it in state.selectedSoundbokses },
+                active = allSoundbokses.all { it in state.connectedSoundbokses },
                 playing = false,
-                onClick = model.toggleAllSoundboksSelections,
+                onClick = state.toggleAllSoundboksSelections,
                 onLongClick = null
               ) {
                 Text("ALL")
@@ -123,11 +123,11 @@ import com.ivianuu.injekt.Provide
 
               value.forEach { soundboks ->
                 SoundboksChip(
-                  selected = soundboks.address in model.selectedSoundbokses,
-                  active = soundboks.address in model.connectedSoundbokses,
-                  playing = soundboks.address == model.playingSoundboks,
-                  onClick = { model.toggleSoundboksSelection(soundboks, false) },
-                  onLongClick = { model.toggleSoundboksSelection(soundboks, true) }
+                  selected = soundboks.address in state.selectedSoundbokses,
+                  active = soundboks.address in state.connectedSoundbokses,
+                  playing = soundboks.address == state.playingSoundboks,
+                  onClick = { state.toggleSoundboksSelection(soundboks, false) },
+                  onLongClick = { state.toggleSoundboksSelection(soundboks, true) }
                 ) {
                   Text(soundboks.name)
                 }
@@ -135,15 +135,15 @@ import com.ivianuu.injekt.Provide
             }
           }
 
-          if (model.selectedSoundbokses.isEmpty()) {
+          if (state.selectedSoundbokses.isEmpty()) {
             item {
               Text("Select a soundboks to edit")
             }
           } else {
             item {
               SliderListItem(
-                value = model.config.volume,
-                onValueChange = model.updateVolume,
+                value = state.config.volume,
+                onValueChange = state.updateVolume,
                 stepPolicy = incrementingStepPolicy(0.05f),
                 title = { Text("Volume") },
                 valueText = { ScaledPercentageUnitText(it) }
@@ -152,34 +152,34 @@ import com.ivianuu.injekt.Provide
 
             item {
               SingleChoiceToggleButtonGroupListItem(
-                selected = model.config.soundProfile,
+                selected = state.config.soundProfile,
                 values = SoundProfile.values().toList(),
-                onSelectionChanged = model.updateSoundProfile,
+                onSelectionChanged = state.updateSoundProfile,
                 title = { Text("Sound profile") }
               )
             }
 
             item {
               SingleChoiceToggleButtonGroupListItem(
-                selected = model.config.channel,
+                selected = state.config.channel,
                 values = SoundChannel.values().toList(),
-                onSelectionChanged = model.updateChannel,
+                onSelectionChanged = state.updateChannel,
                 title = { Text("Channel") }
               )
             }
 
             item {
               SingleChoiceToggleButtonGroupListItem(
-                selected = model.config.teamUpMode,
+                selected = state.config.teamUpMode,
                 values = TeamUpMode.values().toList(),
-                onSelectionChanged = model.updateTeamUpMode,
+                onSelectionChanged = state.updateTeamUpMode,
                 title = { Text("Team up mode") }
               )
             }
 
             item {
               ListItem(
-                modifier = Modifier.clickable(onClick = model.updatePin),
+                modifier = Modifier.clickable(onClick = state.updatePin),
                 title = { Text("Pin") }
               )
             }
@@ -233,7 +233,7 @@ import com.ivianuu.injekt.Provide
   }
 }
 
-data class HomeModel(
+data class HomeState(
   val soundbokses: Resource<List<Soundboks>>,
   val selectedSoundbokses: Set<String>,
   val connectedSoundbokses: Set<String>,
@@ -249,13 +249,13 @@ data class HomeModel(
   val powerOff: () -> Unit
 )
 
-@Provide fun homeModel(
+@Provide fun homePresenter(
   navigator: Navigator,
   prefsDataStore: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
   remote: SoundboksRemote,
   scopeManager: ScopeManager
-) = Model {
+) = Presenter {
   val prefs by prefsDataStore.data.collectAsState(SoundboksPrefs())
 
   val soundbokses by remember {
@@ -295,7 +295,7 @@ data class HomeModel(
       }
     }
 
-  HomeModel(
+  HomeState(
     soundbokses = soundbokses,
     selectedSoundbokses = prefs.selectedSoundbokses,
     connectedSoundbokses = connectedSoundbokses,
