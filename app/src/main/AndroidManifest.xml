@@ -25,7 +25,8 @@
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
         <receiver
             android:name="com.ivianuu.essentials.broadcast.EsBroadcastReceiver"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
             </intent-filter>
