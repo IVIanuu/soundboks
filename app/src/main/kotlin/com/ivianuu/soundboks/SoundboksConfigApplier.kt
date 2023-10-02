@@ -63,7 +63,7 @@ object SoundboksConfigApplier
             toByteArray: (T) -> ByteArray
           ) {
             LaunchedEffect(config.pin, value) {
-              remote.withSoundboks<Unit>(soundboks.address, config.pin) {
+              remote.withSoundboks(soundboks.address, config.pin) {
                 logger.log { "${device.debugName()} apply $tag $value" }
                 writeCharacteristic(serviceId, characteristicId, toByteArray(value))
               }
