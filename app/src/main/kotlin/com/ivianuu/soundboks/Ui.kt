@@ -153,7 +153,7 @@ import com.ivianuu.injekt.Provide
             item {
               SingleChoiceToggleButtonGroupListItem(
                 selected = state.config.soundProfile,
-                values = SoundProfile.values().toList(),
+                values = SoundProfile.entries,
                 onSelectionChanged = state.updateSoundProfile,
                 title = { Text("Sound profile") }
               )
@@ -162,7 +162,7 @@ import com.ivianuu.injekt.Provide
             item {
               SingleChoiceToggleButtonGroupListItem(
                 selected = state.config.channel,
-                values = SoundChannel.values().toList(),
+                values = SoundChannel.entries,
                 onSelectionChanged = state.updateChannel,
                 title = { Text("Channel") }
               )
@@ -171,7 +171,7 @@ import com.ivianuu.injekt.Provide
             item {
               SingleChoiceToggleButtonGroupListItem(
                 selected = state.config.teamUpMode,
-                values = TeamUpMode.values().toList(),
+                values = TeamUpMode.entries,
                 onSelectionChanged = state.updateTeamUpMode,
                 title = { Text("Team up mode") }
               )
