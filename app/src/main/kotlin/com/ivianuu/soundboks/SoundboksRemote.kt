@@ -75,8 +75,7 @@ import kotlin.time.Duration.Companion.minutes
 ) {
   val isConnected = MutableSharedFlow<Boolean>(
     replay = 1,
-    extraBufferCapacity = Int.MAX_VALUE,
-    onBufferOverflow = BufferOverflow.SUSPEND
+    extraBufferCapacity = Int.MAX_VALUE
   )
 
   val device = bluetoothManager.adapter.getRemoteDevice(address)
