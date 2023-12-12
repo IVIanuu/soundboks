@@ -25,11 +25,15 @@ import com.ivianuu.essentials.scopeOfOrNull
 import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
@@ -63,10 +67,16 @@ object SoundboksConfigApplier
             value: T,
             toByteArray: (T) -> ByteArray
           ) {
+            val writeLock = remember { Mutex() }
+
             LaunchedEffect(config.pin, value) {
               remote.withSoundboks(soundboks.address, config.pin) {
-                logger.log { "${device.debugName()} apply $tag $value" }
-                writeCharacteristic(serviceId, characteristicId, toByteArray(value))
+                writeLock.withLock {
+                  logger.log { "${device.debugName()} apply $tag $value" }
+                  withContext(NonCancellable) {
+                    writeCharacteristic(serviceId, characteristicId, toByteArray(value))
+                  }
+                }
               }
             }
           }
