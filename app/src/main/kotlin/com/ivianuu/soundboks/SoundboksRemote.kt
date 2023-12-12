@@ -26,6 +26,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -33,6 +34,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
@@ -42,7 +44,7 @@ import kotlin.time.Duration.Companion.minutes
   scope: ScopedCoroutineScope<AppScope>
 ) {
   private val servers = scope.sharedResource<Pair<String, Int?>, SoundboksServer>(
-    sharingStarted = SharingStarted.WhileSubscribed(30.minutes.inWholeMilliseconds, 0),
+    sharingStarted = SharingStarted.WhileSubscribed(5.minutes, Duration.ZERO),
     create = { serverFactory(it.first, it.second) },
     release = { _, server -> server.close() }
   )
@@ -50,9 +52,13 @@ import kotlin.time.Duration.Companion.minutes
   suspend fun <R> withSoundboks(
     address: String,
     pin: Int? = null,
+    connectTimeout: Duration = Duration.INFINITE,
     block: suspend SoundboksServer.() -> R
   ): R? = servers.use(address to pin) { server ->
-    server.isConnected.first { it }
+    withTimeoutOrNull(connectTimeout) {
+      server.isConnected.first { it }
+    } ?: return@use null
+
     race(
       { block(server) },
       {

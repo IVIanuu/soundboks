@@ -22,6 +22,7 @@ import com.ivianuu.essentials.lerp
 import com.ivianuu.essentials.logging.Logger
 import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.scopeOfOrNull
+import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -130,7 +131,7 @@ object SoundboksConfigApplier
 
 @Provide fun soundboksForegroundApplierRunner(
   applier: @Composable () -> SoundboksConfigApplier
-) = ScopeComposition<AppVisibleScope> { applier() }
+) = ScopeComposition<UiScope> { applier() }
 
 @Provide fun soundboksBroadcastApplierRunner(
   applier: @Composable () -> SoundboksConfigApplier,

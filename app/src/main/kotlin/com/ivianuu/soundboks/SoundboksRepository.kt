@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.seconds
 
 @Provide @Scoped<AppScope> class SoundboksRepository(
   private val appContext: AppContext,
@@ -74,11 +75,14 @@ import kotlin.coroutines.resume
             .map { it.configs[soundboks.address]?.pin }
             .distinctUntilChanged()
             .collectLatest { pin ->
-              remote.withSoundboks<Unit>(soundboks.address, pin) {
+              remote.withSoundboks<Unit>(soundboks.address, pin, 30.seconds) {
                 onCancel {
                   if (!isConnected.first())
-                    soundbokses = soundbokses - soundboks
+                    soundbokses -= soundboks
                 }
+              } ?: run {
+                knownSoundbokses -= soundboks
+                soundbokses -= soundboks
               }
             }
         }
@@ -105,15 +109,19 @@ import kotlin.coroutines.resume
     }
 
     DisposableEffect(true) {
-      soundbokses = soundbokses + bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
+      soundbokses += bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
         .filter { it.isSoundboks() }
-        .map { it.toSoundboks() }
+        .map { it.toSoundboks() } +
+          knownSoundbokses
 
       val callback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
           super.onScanResult(callbackType, result)
-          if (result.device.isSoundboks())
-            soundbokses = soundbokses + result.device.toSoundboks()
+          if (result.device.isSoundboks()) {
+            val soundboks = result.device.toSoundboks()
+            soundbokses += soundboks
+            knownSoundbokses += soundboks
+          }
         }
       }
 
@@ -183,4 +191,8 @@ import kotlin.coroutines.resume
       }
     }
   )
+
+  companion object {
+    private val knownSoundbokses = mutableSetOf<Soundboks>()
+  }
 }
