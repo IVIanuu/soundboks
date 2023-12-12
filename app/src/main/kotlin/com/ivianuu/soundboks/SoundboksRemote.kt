@@ -164,9 +164,7 @@ import kotlin.time.Duration.Companion.minutes
     }
 
     writeLock.withLock {
-      withContext(NonCancellable) {
-        writeImpl(1)
-      }
+      writeImpl(1)
     }
   }
 
