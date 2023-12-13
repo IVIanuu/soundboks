@@ -10,7 +10,6 @@ import androidx.compose.runtime.remember
 import com.ivianuu.essentials.AppScope
 import com.ivianuu.essentials.ScopeManager
 import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.app.ScopeComposition
 import com.ivianuu.essentials.broadcast.BroadcastHandler
 import com.ivianuu.essentials.compose.launchComposition
@@ -151,7 +150,7 @@ object SoundboksConfigApplier
 ): @Scoped<AppScope> BroadcastHandler {
   var job: Job? = null
   return BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
-    if (scopeManager.scopeOfOrNull<AppVisibleScope>().first() != null) return@BroadcastHandler
+    if (scopeManager.scopeOfOrNull<UiScope>().first() != null) return@BroadcastHandler
 
     val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
     if (!device.isSoundboks()) return@BroadcastHandler
