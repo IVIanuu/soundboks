@@ -5,6 +5,7 @@
 package com.ivianuu.soundboks
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
@@ -206,7 +207,7 @@ import com.ivianuu.injekt.Provide
   Surface(
     modifier = Modifier
       .height(32.dp)
-      .alpha(if (active) 1f else ContentAlpha.disabled),
+      .alpha(animateFloatAsState(if (active) 1f else ContentAlpha.disabled).value),
     shape = RoundedCornerShape(50),
     color = backgroundColor,
     contentColor = contentColor
