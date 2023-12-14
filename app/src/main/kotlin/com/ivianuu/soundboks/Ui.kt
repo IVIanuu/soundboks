@@ -254,14 +254,11 @@ data class HomeState(
   navigator: Navigator,
   prefsDataStore: DataStore<SoundboksPrefs>,
   repository: SoundboksRepository,
-  remote: SoundboksRemote,
-  scopeManager: ScopeManager
+  remote: SoundboksRemote
 ) = Presenter {
   val prefs by prefsDataStore.data.collectAsState(SoundboksPrefs())
 
-  val soundbokses by remember {
-    scopeManager.flowInScope<AppVisibleScope, _>(repository.soundbokses)
-  }.collectAsResourceState()
+  val soundbokses by repository.soundbokses.collectAsResourceState()
 
   val config = prefs.selectedSoundbokses
     .map { prefs.configs[it] ?: SoundboksConfig() }
@@ -285,10 +282,8 @@ data class HomeState(
     .mapNotNullTo(mutableSetOf()) { soundboks ->
       key(soundboks) {
         val isConnected by produceState(false, prefs.configs[soundboks.address]?.pin) {
-          scopeManager.repeatInScope<AppVisibleScope> {
-            remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
-              isConnected.collect { value = it }
-            }
+          remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
+            isConnected.collect { value = it }
           }
         }
 
