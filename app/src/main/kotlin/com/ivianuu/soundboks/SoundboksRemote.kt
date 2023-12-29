@@ -13,6 +13,7 @@ import com.ivianuu.essentials.Scoped
 import com.ivianuu.essentials.SystemService
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.EventFlow
+import com.ivianuu.essentials.coroutines.RateLimiter
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.sharedResource
@@ -86,6 +87,7 @@ import kotlin.time.Duration.Companion.minutes
   val device = bluetoothManager.adapter.getRemoteDevice(address)
 
   private val writeLock = Mutex()
+  private val writeLimiter = RateLimiter(1, 200.milliseconds)
   private val writeResults = EventFlow<Pair<BluetoothGattCharacteristic, Int>>()
 
   private val gatt: BluetoothGatt = bluetoothManager.adapter
@@ -163,6 +165,7 @@ import kotlin.time.Duration.Companion.minutes
     }
 
     writeLock.withLock {
+      writeLimiter.acquire()
       writeImpl(1)
     }
   }
