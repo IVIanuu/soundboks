@@ -12,29 +12,21 @@ import android.bluetooth.le.ScanSettings
 import android.media.AudioManager
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.ivianuu.essentials.AppContext
-import com.ivianuu.essentials.AppScope
-import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.SystemService
-import com.ivianuu.essentials.cast
-import com.ivianuu.essentials.compose.compositionFlow
+import app.cash.molecule.*
+import co.touchlab.kermit.*
+import com.ivianuu.essentials.*
+import com.ivianuu.essentials.compose.*
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.coroutines.onCancel
 import com.ivianuu.essentials.coroutines.sharedResource
 import com.ivianuu.essentials.coroutines.use
 import com.ivianuu.essentials.data.DataStore
-import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.log
 import com.ivianuu.essentials.permission.PermissionManager
-import com.ivianuu.essentials.result.catch
-import com.ivianuu.essentials.safeAs
 import com.ivianuu.essentials.util.BroadcastsFactory
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.flow.Flow
@@ -62,9 +54,9 @@ import kotlin.time.Duration.Companion.seconds
   scope: ScopedCoroutineScope<AppScope>
 ) {
   @SuppressLint("MissingPermission")
-  val soundbokses: Flow<List<Soundboks>> = compositionFlow {
-    if (!remember { permissionManager.permissionState(soundboksPermissions) }.collectAsState(false).value)
-      return@compositionFlow emptyList()
+  val soundbokses: Flow<List<Soundboks>> = moleculeFlow(RecompositionMode.Immediate) {
+    if (!permissionManager.permissionState(soundboksPermissions).collect(false))
+      return@moleculeFlow emptyList()
 
     var soundbokses by remember { mutableStateOf(emptySet<Soundboks>()) }
 
@@ -125,49 +117,46 @@ import kotlin.time.Duration.Companion.seconds
         }
       }
 
-      logger.log { "start scan" }
+      logger.d { "start scan" }
       bluetoothManager.adapter.bluetoothLeScanner.startScan(
         emptyList(),
         ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
         callback
       )
       onDispose {
-        logger.log { "stop scan" }
+        logger.d { "stop scan" }
         bluetoothManager.adapter.bluetoothLeScanner.stopScan(callback)
       }
     }
 
-    if (logger.isLoggingEnabled.value)
-      LaunchedEffect(soundbokses) { logger.log { "soundbokses changed $soundbokses" } }
+    LaunchedEffect(soundbokses) { logger.d { "soundbokses changed $soundbokses" } }
 
     soundbokses.toList()
   }.shareIn(scope, SharingStarted.WhileSubscribed(0, 0), 1)
 
-  val playingSoundboks: Flow<Soundboks?> = compositionFlow {
-    if (!remember { permissionManager.permissionState(soundboksPermissions) }.collectAsState(false).value)
-      return@compositionFlow null
+  val playingSoundboks: Flow<Soundboks?> = moleculeFlow(RecompositionMode.Immediate) {
+    if (!permissionManager.permissionState(soundboksPermissions).collect(false))
+      return@moleculeFlow null
 
-    produceState<Soundboks?>(null) {
-      broadcastsFactory(
-        BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
-        BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED,
-        "android.bluetooth.a2dp.profile.action.ACTIVE_DEVICE_CHANGED"
-      )
-        .onStart<Any?> { emit(Unit) }
-        .mapLatest {
-          if (!audioManager.isBluetoothA2dpOn) null
-          else a2Dp.use {
-            it.javaClass.getDeclaredMethod("getActiveDevice")
-              .invoke(it)
-              .safeAs<BluetoothDevice?>()
-              ?.let { it.toSoundboks() }
-          }
+    broadcastsFactory(
+      BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
+      BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED,
+      "android.bluetooth.a2dp.profile.action.ACTIVE_DEVICE_CHANGED"
+    )
+      .onStart<Any?> { emit(Unit) }
+      .mapLatest {
+        if (!audioManager.isBluetoothA2dpOn) null
+        else a2Dp.use(Unit) {
+          it.javaClass.getDeclaredMethod("getActiveDevice")
+            .invoke(it)
+            .safeAs<BluetoothDevice?>()
+            ?.let { it.toSoundboks() }
         }
-        .collect { value = it }
-    }.value
+      }
+      .collect(null)
   }
 
-  private val a2Dp = scope.sharedResource<BluetoothA2dp>(
+  private val a2Dp = scope.sharedResource<Unit, BluetoothA2dp>(
     sharingStarted = SharingStarted.WhileSubscribed(1000, 0),
     create = {
       suspendCancellableCoroutine { cont ->
@@ -185,7 +174,7 @@ import kotlin.time.Duration.Companion.seconds
         )
       }
     },
-    release = { proxy ->
+    release = { _, proxy ->
       catch {
         bluetoothManager.adapter.closeProfileProxy(BluetoothProfile.A2DP, proxy)
       }

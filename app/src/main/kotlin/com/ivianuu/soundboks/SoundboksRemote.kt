@@ -7,37 +7,26 @@ import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import com.ivianuu.essentials.AppContext
-import com.ivianuu.essentials.AppScope
-import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.SystemService
+import co.touchlab.kermit.*
+import com.ivianuu.essentials.*
 import com.ivianuu.essentials.coroutines.CoroutineContexts
 import com.ivianuu.essentials.coroutines.EventFlow
 import com.ivianuu.essentials.coroutines.RateLimiter
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
-import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.coroutines.sharedResource
 import com.ivianuu.essentials.coroutines.use
-import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.log
-import com.ivianuu.essentials.result.catch
-import com.ivianuu.essentials.unsafeCast
 import com.ivianuu.injekt.Provide
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import splitties.coroutines.*
 import java.util.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 
 @Provide @Scoped<AppScope> class SoundboksRemote(
   private val logger: Logger,
@@ -59,11 +48,11 @@ import kotlin.time.Duration.Companion.minutes
       server.isConnected.first { it }
     } ?: return@use null
 
-    race(
+    raceOf(
       { block(server) },
       {
         server.isConnected.first { !it }
-        logger.log { "${server.device.debugName()} $pin cancel with soundboks" }
+        logger.d { "${server.device.debugName()} $pin cancel with soundboks" }
       }
     ).unsafeCast()
   }
@@ -99,7 +88,7 @@ import kotlin.time.Duration.Companion.minutes
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
           super.onConnectionStateChange(gatt, status, newState)
           val isConnected = newState == BluetoothProfile.STATE_CONNECTED
-          logger.log { "${device.debugName()} $pin connection state changed $isConnected $newState" }
+          logger.d { "${device.debugName()} $pin connection state changed $isConnected $newState" }
           if (isConnected)
             gatt.discoverServices()
           else
@@ -108,10 +97,10 @@ import kotlin.time.Duration.Companion.minutes
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
           super.onServicesDiscovered(gatt, status)
-          logger.log { "${device.debugName()} $pin services discovered" }
+          logger.d { "${device.debugName()} $pin services discovered" }
           scope.launch {
             if (pin != null) {
-              logger.log { "send pin $pin" }
+              logger.d { "send pin $pin" }
               writeCharacteristic(
                 serviceId = UUID.fromString("F5C26570-64EC-4906-B998-6A7302879A2B"),
                 characteristicId = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3"),
@@ -119,7 +108,7 @@ import kotlin.time.Duration.Companion.minutes
               )
             }
 
-            logger.log { "${device.debugName()} $pin ready" }
+            logger.d { "${device.debugName()} $pin ready" }
             isConnected.emit(true)
           }
         }
@@ -137,7 +126,7 @@ import kotlin.time.Duration.Companion.minutes
     )
 
   init {
-    logger.log { "${device.debugName()} $pin init" }
+    logger.d { "${device.debugName()} $pin init" }
   }
 
   suspend fun writeCharacteristic(
@@ -156,7 +145,7 @@ import kotlin.time.Duration.Companion.minutes
       ?: error("${device.debugName()} characteristic not found $serviceId $characteristicId")
 
     suspend fun writeImpl(attempt: Int) {
-      logger.log { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${value.contentToString()} attempt $attempt" }
+      logger.d { "${device.debugName()} $pin send sid $serviceId cid $characteristicId -> ${value.contentToString()} attempt $attempt" }
       characteristic.value = value
       gatt.writeCharacteristic(characteristic)
       withTimeoutOrNull(200.milliseconds) {
@@ -171,7 +160,7 @@ import kotlin.time.Duration.Companion.minutes
   }
 
   suspend fun close() = withContext(coroutineContexts.io) {
-    logger.log { "${device.debugName()} $pin close" }
+    logger.d { "${device.debugName()} $pin close" }
     catch { gatt.disconnect() }
     catch { gatt.close() }
   }

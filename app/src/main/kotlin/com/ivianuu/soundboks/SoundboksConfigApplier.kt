@@ -1,34 +1,20 @@
 package com.ivianuu.soundboks
 
 import android.bluetooth.BluetoothDevice
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
-import com.ivianuu.essentials.AppScope
-import com.ivianuu.essentials.ScopeManager
-import com.ivianuu.essentials.Scoped
-import com.ivianuu.essentials.app.ScopeComposition
+import androidx.compose.runtime.*
+import app.cash.molecule.*
+import co.touchlab.kermit.*
+import com.ivianuu.essentials.*
+import com.ivianuu.essentials.app.*
 import com.ivianuu.essentials.broadcast.BroadcastHandler
-import com.ivianuu.essentials.compose.launchComposition
-import com.ivianuu.essentials.compose.sharedComposition
+import com.ivianuu.essentials.compose.*
 import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
-import com.ivianuu.essentials.coroutines.race
 import com.ivianuu.essentials.data.DataStore
-import com.ivianuu.essentials.lerp
-import com.ivianuu.essentials.logging.Logger
-import com.ivianuu.essentials.logging.log
-import com.ivianuu.essentials.scopeOfOrNull
-import com.ivianuu.essentials.ui.UiScope
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,27 +22,50 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
-object SoundboksConfigApplier
+@Provide @Eager<AppScope> class SoundboksConfigApplier(
+  private val logger: Logger,
+  private val repository: SoundboksRepository,
+  private val prefsDataStore: DataStore<SoundboksPrefs>,
+  private val remote: SoundboksRemote,
+  private val scope: ScopedCoroutineScope<AppScope>,
+  private val scopeManager: ScopeManager
+) {
+  private var broadcastJob by mutableStateOf<Job?>(null)
+  @Provide val broadcastRunner
+    get() = BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
+      if (scopeManager.scopeOfOrNull<AppVisibleScope>().first() != null) return@BroadcastHandler
 
-@Provide fun soundboksConfigApplier(
-  logger: Logger,
-  repository: SoundboksRepository,
-  prefsDataStore: DataStore<SoundboksPrefs>,
-  remote: SoundboksRemote,
-  scope: ScopedCoroutineScope<AppScope>
-): @Scoped<AppScope> @Composable () -> SoundboksConfigApplier =
-  scope.sharedComposition<SoundboksConfigApplier> {
-    DisposableEffect(true) {
-      logger.log { "apply configs" }
-      onDispose { logger.log { "stop apply configs" } }
+      val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
+      if (!device.isSoundboks()) return@BroadcastHandler
+
+      broadcastJob?.cancel()
+      broadcastJob = scope.launch {
+        logger.d { "apply configs broadcast" }
+        delay(30.seconds)
+        logger.d { "stop apply configs broadcast" }
+        broadcastJob = null
+      }
     }
 
-    repository.soundbokses.collectAsState(null).value?.forEach { soundboks ->
+  init {
+    scope.launchMolecule(RecompositionMode.Immediate, {}) { Apply() }
+  }
+
+  @Composable private fun Apply() {
+    if (broadcastJob == null &&
+      scopeManager.scopeOfOrNull<AppVisibleScope>().collect(null) == null)
+      return
+
+    DisposableEffect(true) {
+      logger.d { "apply configs" }
+      onDispose { logger.d { "stop apply configs" } }
+    }
+
+    repository.soundbokses.collect(null)?.forEach { soundboks ->
       key(soundboks) {
-        val config = remember {
-          prefsDataStore.data
-            .map { it.configs[soundboks.address] ?: SoundboksConfig() }
-        }.collectAsState(null).value
+        val config = prefsDataStore.data
+          .map { it.configs[soundboks.address] ?: SoundboksConfig() }
+          .collect(null)
 
         if (config != null) {
           @Composable fun <T> SoundboksCharacteristic(
@@ -71,7 +80,7 @@ object SoundboksConfigApplier
             LaunchedEffect(config.pin, value) {
               remote.withSoundboks(soundboks.address, config.pin) {
                 writeLock.withLock {
-                  logger.log { "${device.debugName()} apply $tag $value" }
+                  logger.d { "${device.debugName()} apply $tag $value" }
                   withContext(NonCancellable) {
                     writeCharacteristic(serviceId, characteristicId, toByteArray(value))
                   }
@@ -133,38 +142,6 @@ object SoundboksConfigApplier
           }
         }
       }
-    }
-
-    SoundboksConfigApplier
-  }
-
-@Provide fun soundboksForegroundApplierRunner(
-  applier: @Composable () -> SoundboksConfigApplier
-) = ScopeComposition<UiScope> { applier() }
-
-@Provide fun soundboksBroadcastApplierRunner(
-  applier: @Composable () -> SoundboksConfigApplier,
-  logger: Logger,
-  scope: ScopedCoroutineScope<AppScope>,
-  scopeManager: ScopeManager
-): @Scoped<AppScope> BroadcastHandler {
-  var job: Job? = null
-  return BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
-    if (scopeManager.scopeOfOrNull<UiScope>().first() != null) return@BroadcastHandler
-
-    val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
-    if (!device.isSoundboks()) return@BroadcastHandler
-
-    job?.cancel()
-    job = scope.launch {
-      race(
-        { launchComposition { applier() } },
-        {
-          logger.log { "apply configs broadcast" }
-          delay(30.seconds)
-          logger.log { "stop apply configs broadcast" }
-        }
-      )
     }
   }
 }

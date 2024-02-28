@@ -24,12 +24,16 @@ plugins {
   kotlin("android")
 }
 
-apply(from = "https://raw.githubusercontent.com/IVIanuu/gradle-scripts/master/android-build-app.gradle")
-apply(from = "https://raw.githubusercontent.com/IVIanuu/gradle-scripts/master/java-8-android.gradle")
-apply(from = "https://raw.githubusercontent.com/IVIanuu/gradle-scripts/master/kt-compiler-args.gradle")
-apply(from = "https://raw.githubusercontent.com/IVIanuu/gradle-scripts/master/kt-source-sets-android.gradle")
-
 android {
+  namespace = "com.ivianuu.soundboks"
+  compileSdk = Build.compileSdk
+  defaultConfig {
+    minSdk = Build.minSdk
+    targetSdk = Build.targetSdk
+    versionName = Build.versionName
+    versionCode = Build.versionCode
+  }
+
   buildTypes {
     getByName("release") {
       isMinifyEnabled = true
@@ -41,7 +45,5 @@ android {
 
 dependencies {
   implementation(Deps.Essentials.android)
-  implementation(Deps.Essentials.broadcast)
-  implementation(Deps.Essentials.permission)
   implementation(Deps.Essentials.rubik)
 }

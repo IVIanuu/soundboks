@@ -15,11 +15,9 @@ object Build {
 
 object Deps {
   object Essentials {
-    private const val version = "0.0.1-dev1233"
+    private const val version = "0.0.1-dev1247"
     const val android = "com.ivianuu.essentials:android:$version"
-    const val broadcast = "com.ivianuu.essentials:broadcast:$version"
     const val gradlePlugin = "com.ivianuu.essentials:gradle-plugin:$version"
-    const val permission = "com.ivianuu.essentials:permission:$version"
     const val rubik = "com.ivianuu.essentials:rubik:$version"
   }
 }
