@@ -39,8 +39,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import arrow.fx.coroutines.*
 import com.google.accompanist.flowlayout.FlowRow
-import com.ivianuu.essentials.ScopeManager
-import com.ivianuu.essentials.app.AppVisibleScope
 import com.ivianuu.essentials.compose.*
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.resource.getOrElse
@@ -71,7 +69,7 @@ import com.ivianuu.injekt.Provide
       repository: SoundboksRepository,
       remote: SoundboksRemote
     ) = Ui<HomeScreen> {
-      val prefs = prefsDataStore.data.collect(SoundboksPrefs())
+      val prefs = prefsDataStore.data.state(SoundboksPrefs())
 
       ScreenScaffold(
         topBar = {
@@ -87,22 +85,22 @@ import com.ivianuu.injekt.Provide
           )
         }
       ) {
-        val soundbokses = repository.soundbokses.collectResource()
+        val soundbokses = repository.soundbokses.resourceState()
 
         val connectedSoundbokses = soundbokses
           .getOrElse { emptyList() }
           .mapNotNullTo(mutableSetOf()) { soundboks ->
             key(soundboks) {
-              collect(false, prefs.configs[soundboks.address]?.pin) {
+              state(false, prefs.configs[soundboks.address]?.pin) {
                 remote.withSoundboks<Unit>(soundboks.address, prefs.configs[soundboks.address]?.pin) {
-                  isConnected.collect { emit(it) }
+                  isConnected.collect { value = it }
                 }
               }
                 .let { if (it) soundboks.address else null }
             }
           }
 
-        val playingSoundboks = repository.playingSoundboks.collect(null)?.address
+        val playingSoundboks = repository.playingSoundboks.state(null)?.address
 
         ResourceBox(soundbokses) { value ->
           VerticalList {

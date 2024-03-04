@@ -15,7 +15,7 @@ object Build {
 
 object Deps {
   object Essentials {
-    private const val version = "0.0.1-dev1247"
+    private const val version = "0.0.1-dev1254"
     const val android = "com.ivianuu.essentials:android:$version"
     const val gradlePlugin = "com.ivianuu.essentials:gradle-plugin:$version"
     const val rubik = "com.ivianuu.essentials:rubik:$version"

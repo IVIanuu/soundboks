@@ -1,59 +1,42 @@
 package com.ivianuu.soundboks
 
-import android.bluetooth.BluetoothDevice
+import android.bluetooth.*
 import androidx.compose.runtime.*
-import app.cash.molecule.*
 import co.touchlab.kermit.*
 import com.ivianuu.essentials.*
 import com.ivianuu.essentials.app.*
-import com.ivianuu.essentials.broadcast.BroadcastHandler
 import com.ivianuu.essentials.compose.*
-import com.ivianuu.essentials.coroutines.ScopedCoroutineScope
 import com.ivianuu.essentials.data.DataStore
+import com.ivianuu.essentials.util.*
 import com.ivianuu.injekt.Provide
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
-@Provide @Eager<AppScope> class SoundboksConfigApplier(
+@Provide class SoundboksConfigApplier(
+  private val appScope: Scope<AppScope>,
+  private val broadcastManager: BroadcastManager,
   private val logger: Logger,
   private val repository: SoundboksRepository,
   private val prefsDataStore: DataStore<SoundboksPrefs>,
-  private val remote: SoundboksRemote,
-  private val scope: ScopedCoroutineScope<AppScope>,
-  private val scopeManager: ScopeManager
-) {
-  private var broadcastJob by mutableStateOf<Job?>(null)
-  @Provide val broadcastRunner
-    get() = BroadcastHandler(BluetoothDevice.ACTION_ACL_CONNECTED) {
-      if (scopeManager.scopeOfOrNull<AppVisibleScope>().first() != null) return@BroadcastHandler
-
-      val device = it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!
-      if (!device.isSoundboks()) return@BroadcastHandler
-
-      broadcastJob?.cancel()
-      broadcastJob = scope.launch {
-        logger.d { "apply configs broadcast" }
-        delay(30.seconds)
-        logger.d { "stop apply configs broadcast" }
-        broadcastJob = null
-      }
-    }
-
-  init {
-    scope.launchMolecule(RecompositionMode.Immediate, {}) { Apply() }
-  }
-
-  @Composable private fun Apply() {
-    if (broadcastJob == null &&
-      scopeManager.scopeOfOrNull<AppVisibleScope>().collect(null) == null)
+  private val remote: SoundboksRemote
+) : ScopeComposition<AppScope> {
+  @Composable override fun Content() {
+    if ((appScope.scopeOfOrNull<AppVisibleScope>() == null) and
+      !broadcastManager.broadcasts(BluetoothDevice.ACTION_ACL_CONNECTED)
+        .filter {
+          it.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)!!.isSoundboks()
+        }
+        .transformLatest {
+          emit(true)
+          logger.d { "apply configs broadcast" }
+          delay(30.seconds)
+          logger.d { "stop apply configs broadcast" }
+          emit(false)
+        }.state(false))
       return
 
     DisposableEffect(true) {
@@ -61,11 +44,12 @@ import kotlin.time.Duration.Companion.seconds
       onDispose { logger.d { "stop apply configs" } }
     }
 
-    repository.soundbokses.collect(null)?.forEach { soundboks ->
+    repository.soundbokses.state(null)?.forEach { soundboks ->
       key(soundboks) {
         val config = prefsDataStore.data
-          .map { it.configs[soundboks.address] ?: SoundboksConfig() }
-          .collect(null)
+          .state(null)
+          ?.configs
+          ?.let { it[soundboks.address] ?: SoundboksConfig() }
 
         if (config != null) {
           @Composable fun <T> SoundboksCharacteristic(

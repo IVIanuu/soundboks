@@ -27,7 +27,7 @@ import com.ivianuu.essentials.coroutines.sharedResource
 import com.ivianuu.essentials.coroutines.use
 import com.ivianuu.essentials.data.DataStore
 import com.ivianuu.essentials.permission.PermissionManager
-import com.ivianuu.essentials.util.BroadcastsFactory
+import com.ivianuu.essentials.util.*
 import com.ivianuu.injekt.Provide
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -46,7 +46,7 @@ import kotlin.time.Duration.Companion.seconds
   private val appContext: AppContext,
   private val audioManager: @SystemService AudioManager,
   private val bluetoothManager: @SystemService BluetoothManager,
-  private val broadcastsFactory: BroadcastsFactory,
+  private val broadcastManager: BroadcastManager,
   private val logger: Logger,
   permissionManager: PermissionManager,
   private val prefsDataStore: DataStore<SoundboksPrefs>,
@@ -55,7 +55,7 @@ import kotlin.time.Duration.Companion.seconds
 ) {
   @SuppressLint("MissingPermission")
   val soundbokses: Flow<List<Soundboks>> = moleculeFlow(RecompositionMode.Immediate) {
-    if (!permissionManager.permissionState(soundboksPermissions).collect(false))
+    if (!permissionManager.permissionState(soundboksPermissions).state(false))
       return@moleculeFlow emptyList()
 
     var soundbokses by remember { mutableStateOf(emptySet<Soundboks>()) }
@@ -82,7 +82,7 @@ import kotlin.time.Duration.Companion.seconds
     }
 
     LaunchedEffect(true) {
-      broadcastsFactory(
+      broadcastManager.broadcasts(
         BluetoothAdapter.ACTION_STATE_CHANGED,
         BluetoothDevice.ACTION_BOND_STATE_CHANGED,
         BluetoothDevice.ACTION_ACL_CONNECTED,
@@ -135,10 +135,10 @@ import kotlin.time.Duration.Companion.seconds
   }.shareIn(scope, SharingStarted.WhileSubscribed(0, 0), 1)
 
   val playingSoundboks: Flow<Soundboks?> = moleculeFlow(RecompositionMode.Immediate) {
-    if (!permissionManager.permissionState(soundboksPermissions).collect(false))
+    if (!permissionManager.permissionState(soundboksPermissions).state(false))
       return@moleculeFlow null
 
-    broadcastsFactory(
+    broadcastManager.broadcasts(
       BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
       BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED,
       "android.bluetooth.a2dp.profile.action.ACTIVE_DEVICE_CHANGED"
@@ -153,7 +153,7 @@ import kotlin.time.Duration.Companion.seconds
             ?.let { it.toSoundboks() }
         }
       }
-      .collect(null)
+      .state(null)
   }
 
   private val a2Dp = scope.sharedResource<Unit, BluetoothA2dp>(

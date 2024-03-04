@@ -23,7 +23,7 @@
         android:allowBackup="false"
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
         <receiver
-            android:name="com.ivianuu.essentials.broadcast.EsBroadcastReceiver"
+            android:name="com.ivianuu.essentials.util.EsBroadcastReceiver"
             android:exported="true"
             tools:ignore="Instantiatable">
             <intent-filter>
