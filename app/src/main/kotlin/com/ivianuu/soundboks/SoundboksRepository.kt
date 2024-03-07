@@ -24,14 +24,14 @@ import kotlin.time.Duration.Companion.seconds
   private val audioManager: @SystemService AudioManager,
   private val bluetoothManager: @SystemService BluetoothManager,
   private val broadcastManager: BroadcastManager,
+  coroutineScope: ScopedCoroutineScope<AppScope>,
   private val logger: Logger,
   permissionManager: PermissionManager,
   private val prefsDataStore: DataStore<SoundboksPrefs>,
   private val remote: SoundboksRemote,
-  scope: ScopedCoroutineScope<AppScope>
 ) {
   @SuppressLint("MissingPermission")
-  val soundbokses: Flow<List<Soundboks>> = moleculeFlow(RecompositionMode.Immediate) {
+  val soundbokses: Flow<List<Soundboks>> = moleculeFlow {
     if (!permissionManager.permissionState(soundboksPermissions).state(false))
       return@moleculeFlow emptyList()
 
@@ -109,9 +109,9 @@ import kotlin.time.Duration.Companion.seconds
     LaunchedEffect(soundbokses) { logger.d { "soundbokses changed $soundbokses" } }
 
     soundbokses.toList()
-  }.shareIn(scope, SharingStarted.WhileSubscribed(0, 0), 1)
+  }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(0, 0), 1)
 
-  val playingSoundboks: Flow<Soundboks?> = moleculeFlow(RecompositionMode.Immediate) {
+  val playingSoundboks: Flow<Soundboks?> = moleculeFlow {
     if (!permissionManager.permissionState(soundboksPermissions).state(false))
       return@moleculeFlow null
 
@@ -133,7 +133,7 @@ import kotlin.time.Duration.Companion.seconds
       .state(null)
   }
 
-  private val a2Dp = scope.sharedResource<Unit, BluetoothA2dp>(
+  private val a2Dp = coroutineScope.sharedResource<Unit, BluetoothA2dp>(
     sharingStarted = SharingStarted.WhileSubscribed(1000, 0),
     create = {
       suspendCancellableCoroutine { cont ->
