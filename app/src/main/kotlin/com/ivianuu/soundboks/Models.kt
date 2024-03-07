@@ -4,10 +4,10 @@
 
 package com.ivianuu.soundboks
 
-import android.bluetooth.BluetoothDevice
-import com.ivianuu.essentials.data.DataStoreModule
-import com.ivianuu.injekt.Provide
-import kotlinx.serialization.Serializable
+import android.bluetooth.*
+import com.ivianuu.essentials.data.*
+import com.ivianuu.injekt.*
+import kotlinx.serialization.*
 
 data class Soundboks(val address: String, val name: String)
 

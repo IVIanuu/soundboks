@@ -5,11 +5,9 @@
 package com.ivianuu.soundboks
 
 import android.Manifest
-import com.ivianuu.essentials.app.AppVisibleScope
-import com.ivianuu.essentials.app.ScopeWorker
-import com.ivianuu.essentials.permission.PermissionManager
-import com.ivianuu.essentials.permission.RuntimePermission
-import com.ivianuu.injekt.Provide
+import com.ivianuu.essentials.app.*
+import com.ivianuu.essentials.permission.*
+import com.ivianuu.injekt.*
 
 @Provide class SoundboksBluetoothConnectPermission : RuntimePermission(
   permissionName = Manifest.permission.BLUETOOTH_CONNECT,

@@ -4,7 +4,7 @@
 
 package com.ivianuu.soundboks
 
-import com.ivianuu.essentials.app.EsApp
+import com.ivianuu.essentials.app.*
 import com.ivianuu.injekt.*
 
 class App : EsApp({ inject() })

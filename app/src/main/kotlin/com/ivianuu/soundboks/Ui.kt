@@ -4,57 +4,34 @@
 
 package com.ivianuu.soundboks
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.ContentAlpha
-import androidx.compose.material.Icon
-import androidx.compose.material.LocalContentColor
-import androidx.compose.material.LocalTextStyle
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.text.*
+import androidx.compose.material.*
 import androidx.compose.material.icons.*
 import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.text.input.*
+import androidx.compose.ui.unit.*
 import arrow.fx.coroutines.*
-import com.google.accompanist.flowlayout.FlowRow
+import com.google.accompanist.flowlayout.*
 import com.ivianuu.essentials.compose.*
-import com.ivianuu.essentials.data.DataStore
-import com.ivianuu.essentials.resource.getOrElse
-import com.ivianuu.essentials.resource.getOrNull
+import com.ivianuu.essentials.data.*
+import com.ivianuu.essentials.resource.*
 import com.ivianuu.essentials.ui.app.*
 import com.ivianuu.essentials.ui.common.*
-import com.ivianuu.essentials.ui.dialog.TextInputScreen
+import com.ivianuu.essentials.ui.dialog.*
 import com.ivianuu.essentials.ui.material.*
-import com.ivianuu.essentials.ui.navigation.Navigator
-import com.ivianuu.essentials.ui.navigation.RootScreen
-import com.ivianuu.essentials.ui.navigation.Ui
-import com.ivianuu.essentials.ui.navigation.push
-import com.ivianuu.essentials.ui.prefs.ScaledPercentageUnitText
-import com.ivianuu.essentials.ui.prefs.SingleChoiceToggleButtonGroupListItem
-import com.ivianuu.essentials.ui.prefs.SliderListItem
-import com.ivianuu.injekt.Provide
+import com.ivianuu.essentials.ui.navigation.*
+import com.ivianuu.essentials.ui.prefs.*
+import com.ivianuu.injekt.*
 
 @Provide val soundboksAppColors = AppColors(
   primary = Color(0xFFF19066),
@@ -69,7 +46,7 @@ import com.ivianuu.injekt.Provide
       repository: SoundboksRepository,
       remote: SoundboksRemote
     ) = Ui<HomeScreen> {
-      val prefs = prefsDataStore.data.state(SoundboksPrefs())
+      val prefs = prefsDataStore.data.scopedState(SoundboksPrefs())
 
       ScreenScaffold(
         topBar = {
@@ -85,7 +62,7 @@ import com.ivianuu.injekt.Provide
           )
         }
       ) {
-        val soundbokses = repository.soundbokses.resourceState()
+        val soundbokses = repository.soundbokses.scopedResourceState()
 
         val connectedSoundbokses = soundbokses
           .getOrElse { emptyList() }
@@ -100,7 +77,7 @@ import com.ivianuu.injekt.Provide
             }
           }
 
-        val playingSoundboks = repository.playingSoundboks.state(null)?.address
+        val playingSoundboks = repository.playingSoundboks.scopedState(null)?.address
 
         ResourceBox(soundbokses) { value ->
           VerticalList {
